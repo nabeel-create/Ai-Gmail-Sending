@@ -1,110 +1,163 @@
 # ============================
-# 📧 AI Gmail Sender App
+# 📧 AI Gmail Sender – Elegant Version (Streamlit Cloud)
 # Author: Nabeel
 # ============================
 
 import streamlit as st
 import pandas as pd
-import os
+import os, base64, time
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import base64
-from openai import OpenAI
+from email.mime.base import MIMEBase
+from email import encoders
 
-# ============================
-# 🔒 Load Secrets from Streamlit
-# ============================
+# --- Page Setup ---
+st.set_page_config(page_title="AI Gmail Sender by Nabeel", page_icon="📧", layout="wide")
 
-CLIENT_ID = st.secrets["CLIENT_ID"]
-CLIENT_SECRET = st.secrets["CLIENT_SECRET"]
-REFRESH_TOKEN = st.secrets["REFRESH_TOKEN"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+# --- Custom CSS for Styling ---
+st.markdown("""
+    <style>
+    .main {
+        background: linear-gradient(135deg, #f9fafc 0%, #eef2f3 100%);
+        color: #222;
+    }
+    .stApp header {visibility: hidden;}
+    .big-title {
+        font-size: 36px;
+        font-weight: 700;
+        background: -webkit-linear-gradient(45deg, #0072ff, #00c6ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+        font-size: 18px;
+        color: #444;
+    }
+    .footer {
+        font-size: 14px;
+        color: #888;
+        text-align: center;
+        margin-top: 40px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+# --- Welcome Section ---
+with st.spinner("🚀 Initializing AI Gmail Sender... Please wait..."):
+    time.sleep(2)
 
-# ============================
-# 🎨 Streamlit Page Setup
-# ============================
+st.markdown('<h1 class="big-title">📧 AI Gmail Sender</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Welcome to your automated Gmail sending assistant powered by AI 🤖<br>Developed with ❤️ by <b>Nabeel</b></p>', unsafe_allow_html=True)
+st.divider()
 
-st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="centered")
-st.title("📨 AI Gmail Sender by Nabeel")
-st.write("Generate and send professional AI-written emails using Gmail API and OpenAI GPT-5 ✨")
+# --- Load Secrets ---
+try:
+    client_id = st.secrets["CLIENT_ID"]
+    client_secret = st.secrets["CLIENT_SECRET"]
+    refresh_token = st.secrets["REFRESH_TOKEN"]
+except KeyError:
+    st.error("❌ Missing API credentials! Please add CLIENT_ID, CLIENT_SECRET, and REFRESH_TOKEN in Streamlit Secrets.")
+    st.stop()
 
-# ============================
-# 🧠 AI Email Generator
-# ============================
+# --- Gmail Authentication ---
+try:
+    creds_data = {
+        "token": "",
+        "refresh_token": refresh_token,
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "scopes": ["https://www.googleapis.com/auth/gmail.send"],
+        "type": "authorized_user"
+    }
+    creds = Credentials.from_authorized_user_info(creds_data)
+    service = build("gmail", "v1", credentials=creds)
+    st.success("✅ Gmail API connected successfully!")
+except Exception as e:
+    st.error(f"⚠️ Gmail API connection failed: {e}")
+    st.stop()
 
-st.subheader("✍️ Generate Email with AI")
+# --- Upload Contacts ---
+st.subheader("📁 Upload Contact List")
+uploaded_file = st.file_uploader("Upload your contacts CSV file (columns: name,email)", type="csv")
+contacts = None
+if uploaded_file:
+    contacts = pd.read_csv(uploaded_file)
+    st.dataframe(contacts, use_container_width=True)
+    st.success(f"✅ {len(contacts)} contacts loaded")
 
-subject_prompt = st.text_input("Enter email subject or topic")
-body_prompt = st.text_area("Describe what you want to say in the email")
+# --- Upload Attachments ---
+st.subheader("📎 Upload Attachments (optional)")
+uploaded_attachments = st.file_uploader("Upload one or more files", type=None, accept_multiple_files=True)
+attachment_paths = []
+if uploaded_attachments:
+    for f in uploaded_attachments:
+        path = os.path.join(".", f.name)
+        with open(path, "wb") as out_file:
+            out_file.write(f.getbuffer())
+        attachment_paths.append(path)
+    st.info(f"📎 {len(attachment_paths)} attachment(s) ready")
 
-if st.button("✨ Generate Email"):
-    if not body_prompt.strip():
-        st.warning("Please enter a topic or message idea.")
+# --- Compose Email ---
+st.subheader("📝 Compose Your Email")
+col1, col2 = st.columns(2)
+with col1:
+    sender = st.text_input("Sender Gmail (authorized):")
+    subject = st.text_input("Email Subject:")
+with col2:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("Use **{{name}}** to personalize each message.")
+body = st.text_area("Email Body", height=200, placeholder="Hello {{name}},\n\nThis is an automated email from Nabeel's AI Gmail Sender...")
+
+# --- Helper Functions ---
+def create_message(sender, to, subject, body_text, attachments=None):
+    msg = MIMEMultipart()
+    msg['to'] = to
+    msg['from'] = sender
+    msg['subject'] = subject
+    msg.attach(MIMEText(body_text, 'plain'))
+    if attachments:
+        for path in attachments:
+            part = MIMEBase('application', 'octet-stream')
+            with open(path, 'rb') as f:
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
+            msg.attach(part)
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    return {'raw': raw}
+
+def send_message(service, user_id, message):
+    try:
+        sent = service.users().messages().send(userId=user_id, body=message).execute()
+        return f"✅ Sent (ID: {sent['id']})"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+# --- Send Button ---
+if st.button("🚀 Send Emails"):
+    if contacts is None:
+        st.warning("⚠️ Please upload contacts.csv first.")
+    elif not sender or not subject or not body:
+        st.warning("⚠️ Please fill sender, subject, and body.")
     else:
-        with st.spinner("AI is crafting your email..."):
-            try:
-                ai_response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a professional email writer."},
-                        {"role": "user", "content": f"Write a formal and concise email about: {body_prompt}"}
-                    ],
-                    max_tokens=300
-                )
-                ai_text = ai_response.choices[0].message.content.strip()
-                st.success("✅ Email generated successfully!")
-                st.text_area("📄 AI Generated Email", ai_text, height=250)
-            except Exception as e:
-                st.error(f"AI generation failed: {str(e)}")
+        st.info("📨 Sending emails... Please wait.")
+        progress = st.progress(0)
+        logs = []
+        for i, (_, row) in enumerate(contacts.iterrows()):
+            personalized = body.replace("{{name}}", row['name'])
+            msg = create_message(sender, row['email'], subject, personalized, attachments=attachment_paths)
+            status = send_message(service, 'me', msg)
+            logs.append({'email': row['email'], 'status': status})
+            progress.progress((i + 1) / len(contacts))
+        st.success("🎉 All emails sent successfully!")
+        st.dataframe(pd.DataFrame(logs), use_container_width=True)
+        pd.DataFrame(logs).to_csv("send_log.csv", index=False)
+        st.download_button("⬇️ Download Log CSV", data=open("send_log.csv", "rb"), file_name="send_log.csv", mime="text/csv")
 
-# ============================
-# 📤 Gmail Sending Section
-# ============================
+# --- Footer ---
+st.markdown('<div class="footer">💡 Developed by <b>Nabeel</b> | Built with ❤️ using Streamlit & Gmail API</div>', unsafe_allow_html=True)
 
-st.subheader("📩 Send Email")
-
-sender_email = st.text_input("Your Gmail address")
-to_email = st.text_input("Recipient Email")
-subject = st.text_input("Email Subject")
-body = st.text_area("Email Body")
-
-if st.button("📬 Send Email"):
-    if not all([sender_email, to_email, subject, body]):
-        st.warning("⚠️ Please fill in all fields before sending.")
-    else:
-        try:
-            creds = Credentials(
-                None,
-                refresh_token=REFRESH_TOKEN,
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET,
-                token_uri="https://oauth2.googleapis.com/token"
-            )
-            service = build('gmail', 'v1', credentials=creds)
-
-            message = MIMEMultipart()
-            message['to'] = to_email
-            message['from'] = sender_email
-            message['subject'] = subject
-            message.attach(MIMEText(body, 'plain'))
-
-            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-            send_message = {'raw': raw_message}
-
-            sent = service.users().messages().send(userId="me", body=send_message).execute()
-            st.success(f"✅ Email sent successfully to {to_email}")
-        except Exception as e:
-            st.error(f"Error sending email: {str(e)}")
-
-# ============================
-# 📘 Footer
-# ============================
-
-st.markdown("---")
-st.markdown("🧠 **Built by Nabeel** | Powered by Gmail API + OpenAI GPT-5 ✨")
 
