@@ -16,33 +16,78 @@ from email import encoders
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender by Nabeel", page_icon="📧", layout="wide")
 
-# --- Custom CSS for Styling ---
+# --- Custom CSS for Beautiful UI ---
 st.markdown("""
     <style>
+    /* Overall page background and font */
     .main {
         background: linear-gradient(135deg, #f9fafc 0%, #eef2f3 100%);
+        font-family: 'Poppins', sans-serif;
         color: #222;
     }
-    .stApp header {visibility: hidden;}
-    .big-title {
-        font-size: 36px;
-        font-weight: 700;
-        background: -webkit-linear-gradient(45deg, #0072ff, #00c6ff);
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+    /* HEADER */
+    .app-header {
+        background: linear-gradient(90deg, #0061ff, #60efff);
+        padding: 28px;
+        border-radius: 18px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 25px rgba(0, 97, 255, 0.3);
+        margin-bottom: 25px;
+        animation: slideDown 1s ease-out;
+    }
+    .app-header h1 {
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+    }
+    .app-header p {
+        font-size: 18px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 400;
+    }
+    @keyframes slideDown {
+        from {transform: translateY(-20px); opacity: 0;}
+        to {transform: translateY(0); opacity: 1;}
+    }
+
+    /* FOOTER */
+    .footer {
+        text-align: center;
+        margin-top: 60px;
+        padding: 25px;
+        font-size: 15px;
+        color: #555;
+        border-top: 1px solid #ddd;
+        background: linear-gradient(90deg, #ffffff 0%, #f8faff 100%);
+        border-radius: 16px;
+        box-shadow: 0 -2px 20px rgba(0,0,0,0.05);
+        animation: fadeIn 1.5s ease-in;
+    }
+    .footer b {
+        background: -webkit-linear-gradient(45deg, #0061ff, #60efff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        font-weight: 700;
     }
-    .subtitle {
-        font-size: 18px;
-        color: #444;
-    }
-    .footer {
-        font-size: 14px;
-        color: #888;
-        text-align: center;
-        margin-top: 40px;
+    @keyframes fadeIn {
+        from {opacity: 0;}
+        to {opacity: 1;}
     }
     </style>
 """, unsafe_allow_html=True)
+
+# --- Beautiful HEADER ---
+st.markdown("""
+<div class="app-header">
+    <h1>📧 AI Gmail Sender</h1>
+    <p>Welcome to your <b>Smart Email Automation System</b> — powered by AI and crafted by <b>Nabeel</b> 💫</p>
+</div>
+""", unsafe_allow_html=True)
+
 
 # --- Welcome Section ---
 with st.spinner("🚀 Initializing AI Gmail Sender... Please wait..."):
