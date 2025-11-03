@@ -1,5 +1,5 @@
 # ============================
-# 📧 AI Gmail Sender – Clean Professional Edition
+# 📧 AI Gmail Sending System – Clean Professional Edition
 # Author: Nabeel
 # ============================
 
