@@ -14,7 +14,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 # --- Page Setup ---
-st.set_page_config(page_title="AI Gmail Sender by Nabeel", page_icon="📧", layout="wide")
+st.set_page_config(page_title="AI Gmail Sending System by Nabeel", page_icon="📧", layout="wide")
 
 # --- Custom CSS for Clean Look ---
 st.markdown("""
