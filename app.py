@@ -1,5 +1,5 @@
 # ============================
-# 📧 AI Gmail Sender – Elegant Version (Streamlit Cloud)
+# 📧 AI Gmail Sender – Pro Beautiful Edition
 # Author: Nabeel
 # ============================
 
@@ -16,42 +16,57 @@ from email import encoders
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender by Nabeel", page_icon="📧", layout="wide")
 
-# --- Custom CSS for Beautiful UI ---
+# --- Custom CSS for Stunning UI ---
 st.markdown("""
     <style>
-    /* Overall page background and font */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
     .main {
-        background: linear-gradient(135deg, #f9fafc 0%, #eef2f3 100%);
+        background: linear-gradient(135deg, #f6f9ff 0%, #e9f1ff 100%);
         font-family: 'Poppins', sans-serif;
         color: #222;
+        padding: 10px 40px;
     }
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
     /* HEADER */
     .app-header {
         background: linear-gradient(90deg, #0061ff, #60efff);
-        padding: 28px;
-        border-radius: 18px;
+        padding: 30px 10px;
+        border-radius: 20px;
         text-align: center;
         color: white;
-        box-shadow: 0 4px 25px rgba(0, 97, 255, 0.3);
-        margin-bottom: 25px;
+        box-shadow: 0 8px 25px rgba(0, 97, 255, 0.3);
+        margin-bottom: 30px;
         animation: slideDown 1s ease-out;
     }
     .app-header h1 {
-        font-size: 42px;
+        font-size: 45px;
         font-weight: 800;
         letter-spacing: 1px;
         margin-bottom: 6px;
+        text-shadow: 0 0 10px rgba(255,255,255,0.7);
     }
     .app-header p {
         font-size: 18px;
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: 400;
+        color: rgba(255, 255, 255, 0.95);
     }
     @keyframes slideDown {
-        from {transform: translateY(-20px); opacity: 0;}
+        from {transform: translateY(-25px); opacity: 0;}
         to {transform: translateY(0); opacity: 1;}
+    }
+
+    /* CARDS */
+    .card {
+        background: white;
+        border-radius: 18px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 25px rgba(0,0,0,0.1);
     }
 
     /* FOOTER */
@@ -72,30 +87,46 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 700;
+        animation: glow 2s infinite alternate;
+    }
+    @keyframes glow {
+        from { text-shadow: 0 0 5px #0061ff, 0 0 10px #60efff; }
+        to { text-shadow: 0 0 15px #60efff, 0 0 25px #00f2ff; }
     }
     @keyframes fadeIn {
         from {opacity: 0;}
         to {opacity: 1;}
     }
+
+    /* Buttons */
+    div.stButton > button {
+        background: linear-gradient(90deg, #0072ff, #00c6ff);
+        color: white;
+        border: none;
+        padding: 0.6em 2em;
+        font-weight: 600;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,114,255,0.3);
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background: linear-gradient(90deg, #005be7, #00a6ff);
+        box-shadow: 0 6px 18px rgba(0,114,255,0.4);
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Beautiful HEADER ---
+# --- HEADER ---
 st.markdown("""
 <div class="app-header">
     <h1>📧 AI Gmail Sender</h1>
-    <p>Welcome to your <b>Smart Email Automation System</b> — powered by AI and crafted by <b>Nabeel</b> 💫</p>
+    <p>Welcome to your Smart Email Automation System — powered by AI & built by <b>Nabeel</b> 💫</p>
 </div>
 """, unsafe_allow_html=True)
 
-
-# --- Welcome Section ---
-with st.spinner("🚀 Initializing AI Gmail Sender... Please wait..."):
-    time.sleep(2)
-
-st.markdown('<h1 class="big-title">📧 AI Gmail Sender</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Welcome to your automated Gmail sending assistant powered by AI 🤖<br>Developed with ❤️ by <b>Nabeel</b></p>', unsafe_allow_html=True)
-st.divider()
+# --- Loading Animation ---
+with st.spinner("🚀 Initializing AI Gmail Sender..."):
+    time.sleep(1.8)
 
 # --- Load Secrets ---
 try:
@@ -125,15 +156,18 @@ except Exception as e:
     st.stop()
 
 # --- Upload Contacts ---
-st.subheader("📁 Upload Contact List")
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.subheader("📁 Upload Contacts")
 uploaded_file = st.file_uploader("Upload your contacts CSV file (columns: name,email)", type="csv")
 contacts = None
 if uploaded_file:
     contacts = pd.read_csv(uploaded_file)
     st.dataframe(contacts, use_container_width=True)
     st.success(f"✅ {len(contacts)} contacts loaded")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Upload Attachments ---
+st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📎 Upload Attachments (optional)")
 uploaded_attachments = st.file_uploader("Upload one or more files", type=None, accept_multiple_files=True)
 attachment_paths = []
@@ -144,19 +178,22 @@ if uploaded_attachments:
             out_file.write(f.getbuffer())
         attachment_paths.append(path)
     st.info(f"📎 {len(attachment_paths)} attachment(s) ready")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Compose Email ---
-st.subheader("📝 Compose Your Email")
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.subheader("📝 Compose Email")
 col1, col2 = st.columns(2)
 with col1:
     sender = st.text_input("Sender Gmail (authorized):")
     subject = st.text_input("Email Subject:")
 with col2:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("Use **{{name}}** to personalize each message.")
-body = st.text_area("Email Body", height=200, placeholder="Hello {{name}},\n\nThis is an automated email from Nabeel's AI Gmail Sender...")
+    st.markdown("💡 Use **{{name}}** in your email body for personalization.")
+body = st.text_area("✉️ Email Body", height=200, placeholder="Hello {{name}},\n\nThis is an automated email from Nabeel's AI Gmail Sender...")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Helper Functions ---
+# --- Email Sending Functions ---
 def create_message(sender, to, subject, body_text, attachments=None):
     msg = MIMEMultipart()
     msg['to'] = to
@@ -181,7 +218,8 @@ def send_message(service, user_id, message):
     except Exception as e:
         return f"❌ Error: {e}"
 
-# --- Send Button ---
+# --- Send Emails ---
+st.markdown('<div class="card">', unsafe_allow_html=True)
 if st.button("🚀 Send Emails"):
     if contacts is None:
         st.warning("⚠️ Please upload contacts.csv first.")
@@ -198,11 +236,16 @@ if st.button("🚀 Send Emails"):
             logs.append({'email': row['email'], 'status': status})
             progress.progress((i + 1) / len(contacts))
         st.success("🎉 All emails sent successfully!")
-        st.dataframe(pd.DataFrame(logs), use_container_width=True)
-        pd.DataFrame(logs).to_csv("send_log.csv", index=False)
+        log_df = pd.DataFrame(logs)
+        st.dataframe(log_df, use_container_width=True)
+        log_df.to_csv("send_log.csv", index=False)
         st.download_button("⬇️ Download Log CSV", data=open("send_log.csv", "rb"), file_name="send_log.csv", mime="text/csv")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Footer ---
-st.markdown('<div class="footer">💡 Developed by <b>Nabeel</b> | Built with ❤️ using Streamlit & Gmail API</div>', unsafe_allow_html=True)
-
-
+# --- FOOTER ---
+st.markdown("""
+<div class="footer">
+    <p>💌 Thank you for using <b>AI Gmail Sender</b><br>
+    Developed with ❤️ by <b>Nabeel</b> | Built using Streamlit × Gmail API | © 2025</p>
+</div>
+""", unsafe_allow_html=True)
