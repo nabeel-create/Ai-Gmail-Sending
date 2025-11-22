@@ -6,69 +6,52 @@
 import streamlit as st
 import pandas as pd
 import os
-import json
 import base64
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
-from urllib.parse import urlparse, parse_qs
+import smtplib
+from authlib.integrations.requests_client import OAuth2Session
 
 # --- Page Setup ---
-st.set_page_config(page_title="AI Gmail Sender OAuth", page_icon="📧", layout="wide")
+st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
 st.title("📧 AI Gmail Sender – OAuth Version")
-st.caption("Send personalized Gmail messages securely | Multi-User Supported")
+st.caption("Send personalized Gmail emails securely")
 
-# --- Step 0: Create client_secret.json from Streamlit Secrets ---
-# Streamlit Secrets must have your Google OAuth credentials in TOML:
-# [google_oauth]
-# client_id = "YOUR_CLIENT_ID"
-# client_secret = "YOUR_CLIENT_SECRET"
+# --- OAuth Setup ---
+CLIENT_ID = st.secrets["google_oauth"]["client_id"]
+CLIENT_SECRET = st.secrets["google_oauth"]["client_secret"]
+REDIRECT_URI = "https://ai-gmail-sending-bynabeel.streamlit.app/callback"
+SCOPE = ["https://www.googleapis.com/auth/gmail.send"]
 
-client_info = {
-    "web": {
-        "client_id": st.secrets["google_oauth"]["client_id"],
-        "client_secret": st.secrets["google_oauth"]["client_secret"],
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": ["https://ai-gmail-sending-bynabeel.streamlit.app/"]
-    }
-}
+if "token" not in st.session_state:
+    st.session_state.token = None
 
-with open("client_secret.json", "w") as f:
-    json.dump(client_info, f)
-
-# --- Step 1: One-Click Google OAuth Login ---
-if "creds" not in st.session_state:
-    st.session_state.creds = None
-
-if st.session_state.creds is None:
-    st.subheader("🔑 Sign in with Google to send Gmail")
-    flow = Flow.from_client_secrets_file(
-        "client_secret.json",
-        scopes=['https://www.googleapis.com/auth/gmail.send'],
-        redirect_uri='https://ai-gmail-sending-bynabeel.streamlit.app/'
+# --- Step 1: Login Button ---
+if st.session_state.token is None:
+    st.subheader("🔑 Sign in with Google")
+    oauth = OAuth2Session(CLIENT_ID, CLIENT_SECRET, scope=SCOPE, redirect_uri=REDIRECT_URI)
+    authorization_url, state = oauth.create_authorization_url(
+        'https://accounts.google.com/o/oauth2/auth',
+        access_type='offline', prompt='consent'
     )
-    auth_url, _ = flow.authorization_url(prompt='consent')
-    st.markdown(f"[Click here to authorize Gmail]({auth_url})")
+    st.markdown(f"[Click here to authorize Gmail]({authorization_url})")
 
-    # Capture the URL after redirect
-    redirect_response = st.text_input("Paste the full URL you were redirected to after login:")
+    # Capture the redirect code
+    redirect_response = st.text_input("Paste the full URL you were redirected to:")
     if redirect_response:
         try:
-            code = parse_qs(urlparse(redirect_response).query)['code'][0]
-            flow.fetch_token(code=code)
-            st.session_state.creds = flow.credentials
+            token = oauth.fetch_token(
+                'https://oauth2.googleapis.com/token',
+                authorization_response=redirect_response
+            )
+            st.session_state.token = token
             st.success("✅ Google account connected successfully!")
         except Exception as e:
             st.error(f"⚠️ OAuth failed: {e}")
 else:
     st.success("✅ Already authenticated with Google account")
-
-creds = st.session_state.creds
 
 # --- Step 2: Upload Contacts ---
 st.subheader("📁 Upload Contacts")
@@ -113,12 +96,13 @@ def create_message(sender, to, subject, body_text, attachments=None):
             msg.attach(part)
     return msg
 
-def send_email_oauth(creds, to_email, subject, body, attachments=None):
+def send_email(token, to_email, subject, body, attachments=None):
     try:
-        sender_email = creds.token_info['email']
+        sender_email = token["id_token"]["email"]
+        access_token = token["access_token"]
         msg = create_message(sender_email, to_email, subject, body, attachments)
-        access_token = creds.token
         auth_string = f"user={sender_email}\1auth=Bearer {access_token}\1\1"
+
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.docmd('AUTH', 'XOAUTH2 ' + base64.b64encode(auth_string.encode()).decode())
             server.sendmail(sender_email, to_email, msg.as_string())
@@ -128,7 +112,7 @@ def send_email_oauth(creds, to_email, subject, body, attachments=None):
 
 # --- Step 5: Send Emails ---
 if st.button("🚀 Send Emails"):
-    if creds is None:
+    if st.session_state.token is None:
         st.warning("Authenticate with Google first!")
     elif contacts is None:
         st.warning("Upload contacts.csv first!")
@@ -141,9 +125,9 @@ if st.button("🚀 Send Emails"):
         total = len(contacts)
         for idx, row in contacts.iterrows():
             personalized = body.replace("{{name}}", str(row['name']))
-            status = send_email_oauth(creds, row['email'], subject, personalized, attachments=attachment_paths)
+            status = send_email(st.session_state.token, row['email'], subject, personalized, attachment_paths)
             logs.append({'email': row['email'], 'status': status})
-            progress_bar.progress((idx + 1)/total)
+            progress_bar.progress((idx+1)/total)
         st.success("✅ All emails processed!")
         st.dataframe(pd.DataFrame(logs))
         pd.DataFrame(logs).to_csv("send_log.csv", index=False)
