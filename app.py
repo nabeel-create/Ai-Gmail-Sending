@@ -13,6 +13,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import smtplib
 from authlib.integrations.requests_client import OAuth2Session
+from urllib.parse import urlparse, parse_qs
 
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
@@ -28,23 +29,23 @@ SCOPE = ["https://www.googleapis.com/auth/gmail.send"]
 if "token" not in st.session_state:
     st.session_state.token = None
 
-# --- Step 1: Login Button ---
+# --- Step 1: One-Click Google Login ---
 if st.session_state.token is None:
     st.subheader("🔑 Sign in with Google")
     oauth = OAuth2Session(CLIENT_ID, CLIENT_SECRET, scope=SCOPE, redirect_uri=REDIRECT_URI)
-    authorization_url, state = oauth.create_authorization_url(
+    auth_url, state = oauth.create_authorization_url(
         'https://accounts.google.com/o/oauth2/auth',
         access_type='offline', prompt='consent'
     )
-    st.markdown(f"[Click here to authorize Gmail]({authorization_url})")
+    st.markdown(f"[Click here to authorize Gmail]({auth_url})")
 
-    # Capture the redirect code
-    redirect_response = st.text_input("Paste the full URL you were redirected to:")
+    redirect_response = st.text_input("Paste the full URL you were redirected to after login:")
     if redirect_response:
         try:
+            code = parse_qs(urlparse(redirect_response).query)['code'][0]
             token = oauth.fetch_token(
                 'https://oauth2.googleapis.com/token',
-                authorization_response=redirect_response
+                code=code
             )
             st.session_state.token = token
             st.success("✅ Google account connected successfully!")
