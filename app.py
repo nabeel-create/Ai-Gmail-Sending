@@ -1,58 +1,32 @@
 # ============================
-# 📧 AI Gmail Sender – Streamlit Cloud OAuth
+# 📧 AI Gmail Sender – Multi-User Version
 # Author: Nabeel
 # ============================
 
 import streamlit as st
 import pandas as pd
 import os
-import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+import base64
 import smtplib
-from authlib.integrations.requests_client import OAuth2Session
-from urllib.parse import urlparse, parse_qs
 
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
-st.title("📧 AI Gmail Sender – OAuth Version")
-st.caption("Send personalized Gmail emails securely")
+st.title("📧 AI Gmail Sender")
+st.caption("Send personalized Gmail messages easily | Multi-User Supported")
 
-# --- OAuth Setup ---
-CLIENT_ID = st.secrets["google_oauth"]["client_id"]
-CLIENT_SECRET = st.secrets["google_oauth"]["client_secret"]
-REDIRECT_URI = "https://ai-gmail-sending-bynabeel.streamlit.app/callback"
-SCOPE = ["https://www.googleapis.com/auth/gmail.send"]
+# --- Step 1: User Gmail Login ---
+st.subheader("🔑 Gmail Login")
+st.info("You need to enter your Gmail and App Password (for accounts with 2FA) or normal password if 2FA is off.")
+user_email = st.text_input("Your Gmail")
+user_password = st.text_input("App Password / Gmail Password", type="password")
 
-if "token" not in st.session_state:
-    st.session_state.token = None
-
-# --- Step 1: One-Click Google Login ---
-if st.session_state.token is None:
-    st.subheader("🔑 Sign in with Google")
-    oauth = OAuth2Session(CLIENT_ID, CLIENT_SECRET, scope=SCOPE, redirect_uri=REDIRECT_URI)
-    auth_url, state = oauth.create_authorization_url(
-        'https://accounts.google.com/o/oauth2/auth',
-        access_type='offline', prompt='consent'
-    )
-    st.markdown(f"[Click here to authorize Gmail]({auth_url})")
-
-    redirect_response = st.text_input("Paste the full URL you were redirected to after login:")
-    if redirect_response:
-        try:
-            code = parse_qs(urlparse(redirect_response).query)['code'][0]
-            token = oauth.fetch_token(
-                'https://oauth2.googleapis.com/token',
-                code=code
-            )
-            st.session_state.token = token
-            st.success("✅ Google account connected successfully!")
-        except Exception as e:
-            st.error(f"⚠️ OAuth failed: {e}")
-else:
-    st.success("✅ Already authenticated with Google account")
+if not user_email or not user_password:
+    st.warning("Enter your Gmail and password to proceed.")
+    st.stop()
 
 # --- Step 2: Upload Contacts ---
 st.subheader("📁 Upload Contacts")
@@ -97,15 +71,11 @@ def create_message(sender, to, subject, body_text, attachments=None):
             msg.attach(part)
     return msg
 
-def send_email(token, to_email, subject, body, attachments=None):
+def send_email_smtp(sender_email, password, to_email, subject, body, attachments=None):
     try:
-        sender_email = token["id_token"]["email"]
-        access_token = token["access_token"]
         msg = create_message(sender_email, to_email, subject, body, attachments)
-        auth_string = f"user={sender_email}\1auth=Bearer {access_token}\1\1"
-
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.docmd('AUTH', 'XOAUTH2 ' + base64.b64encode(auth_string.encode()).decode())
+            server.login(sender_email, password)
             server.sendmail(sender_email, to_email, msg.as_string())
         return "✅ Sent"
     except Exception as e:
@@ -113,9 +83,7 @@ def send_email(token, to_email, subject, body, attachments=None):
 
 # --- Step 5: Send Emails ---
 if st.button("🚀 Send Emails"):
-    if st.session_state.token is None:
-        st.warning("Authenticate with Google first!")
-    elif contacts is None:
+    if contacts is None:
         st.warning("Upload contacts.csv first!")
     elif not subject or not body:
         st.warning("Fill subject and body fields!")
@@ -126,13 +94,13 @@ if st.button("🚀 Send Emails"):
         total = len(contacts)
         for idx, row in contacts.iterrows():
             personalized = body.replace("{{name}}", str(row['name']))
-            status = send_email(st.session_state.token, row['email'], subject, personalized, attachment_paths)
+            status = send_email_smtp(user_email, user_password, row['email'], subject, personalized, attachments=attachment_paths)
             logs.append({'email': row['email'], 'status': status})
-            progress_bar.progress((idx+1)/total)
+            progress_bar.progress((idx + 1)/total)
         st.success("✅ All emails processed!")
         st.dataframe(pd.DataFrame(logs))
         pd.DataFrame(logs).to_csv("send_log.csv", index=False)
         st.info("📁 Log saved as send_log.csv")
 
 st.markdown("---")
-st.markdown("💡 **Developed by Nabeel** | Built with ❤️ using Streamlit & Gmail OAuth")
+st.markdown("💡 **Developed by Nabeel** | Built with ❤️ using Streamlit & SMTP")
