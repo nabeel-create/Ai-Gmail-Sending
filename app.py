@@ -1,5 +1,5 @@
 # ============================
-# 📧 AI Gmail Sender – Multi-User Version (Final)
+# 📧 AI Gmail Sender – Gmail Password Only
 # Author: Nabeel
 # ============================
 
@@ -15,20 +15,25 @@ from email import encoders
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
 st.title("📧 AI Gmail Sender")
-st.caption("Send personalized Gmail messages easily | Multi-User Supported")
+st.caption("Send personalized Gmail messages easily | Gmail Password Only")
 
-# --- Step 1: Gmail Login ---
+# --- Step 1: Gmail Login (Gmail Password Only) ---
 st.subheader("🔑 Gmail Login")
-st.info("Enter your Gmail and App Password (or normal password if 2FA is OFF).")
+st.info("""
+Enter your **Gmail address** and **Gmail password**.  
+
+⚠️ Note: Your account must have **2FA disabled** and allow **less secure apps**:
+https://myaccount.google.com/lesssecureapps
+""")
 
 user_email = st.text_input("Your Gmail")
-user_password = st.text_input("App Password / Gmail Password", type="password")
+user_password = st.text_input("Gmail Password", type="password")
 
 login_status = False
 
-# Validate Gmail credentials
-if st.button("🔐 Login"):
+if st.button("🔐 Login with Gmail Password"):
     try:
+        # Try SMTP login using Gmail password
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(user_email, user_password)
 
@@ -36,12 +41,18 @@ if st.button("🔐 Login"):
         login_status = True
 
     except smtplib.SMTPAuthenticationError:
-        st.error("❌ Wrong password or invalid App Password. Please enter the correct password.")
+        st.error("""
+❌ Login failed! Possible reasons:
+- Wrong Gmail password
+- 2FA is enabled (must disable to use Gmail password)
+- Less secure apps access is disabled
 
+Please correct your password or update your Google account settings.
+""")
     except Exception as e:
         st.error(f"⚠️ Login Error: {e}")
 
-# STOP app until login is successful
+# Stop the app until login is successful
 if not login_status:
     st.stop()
 
