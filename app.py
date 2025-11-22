@@ -5,134 +5,163 @@
 
 import streamlit as st
 import pandas as pd
-import smtplib, ssl
-import os
+import os, json, base64
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from streamlit_oauth import OAuth2Component
 
-st.set_page_config(page_title="AI Gmail Sender (SMTP)", page_icon="📧", layout="wide")
-st.title("📧 AI Gmail Sender – Simple Login (No OAuth)")
-st.caption("Send personalized Gmail messages using your App Password")
+# --- Page Config ---
+st.set_page_config(page_title="Professional Gmail Sender", page_icon="📧", layout="wide")
+st.title("📧 Professional Gmail Sender")
+st.caption("Login with your Gmail to send bulk emails securely")
 
-# -----------------------------------------
-# 🔐 Gmail Login
-# -----------------------------------------
-st.sidebar.header("🔐 Gmail Login")
+# --- Google OAuth Setup ---
+client_id = st.secrets["google"]["client_id"]
+client_secret = st.secrets["google"]["client_secret"]
+redirect_uri = st.secrets["google"]["redirect_uri"]
 
-sender_email = st.sidebar.text_input("Your Gmail Address")
-app_password = st.sidebar.text_input("Your Gmail App Password", type="password")
+oauth = OAuth2Component(
+    client_id=client_id,
+    client_secret=client_secret,
+    redirect_uri=redirect_uri,
+    authorize_endpoint="https://accounts.google.com/o/oauth2/auth",
+    token_endpoint="https://oauth2.googleapis.com/token"
+)
 
-login_ok = False
-if st.sidebar.button("Login"):
-    if not sender_email or not app_password:
-        st.sidebar.error("Please enter Gmail + App Password!")
-    else:
+scopes = ["https://www.googleapis.com/auth/gmail.send"]
+
+# --- User Login ---
+if "token" not in st.session_state:
+    result = oauth.authorize_button("Login with Google", scopes=scopes)
+    if result:
+        st.session_state.token = result.get('token')
+        st.success("Logged in successfully!")
+        st.experimental_rerun()
+
+if "token" in st.session_state:
+    access_token = st.session_state.token["access_token"]
+
+    # --- Sidebar Navigation ---
+    st.sidebar.title("Menu")
+    page = st.sidebar.radio("Navigate", ["Compose Email", "Templates", "Logs", "Help"])
+
+    # --- Email Functions ---
+    def create_message(sender, to, subject, body_text, attachments=None):
+        msg = MIMEMultipart()
+        msg['to'] = to
+        msg['from'] = sender
+        msg['subject'] = subject
+        msg.attach(MIMEText(body_text, 'plain'))
+        if attachments:
+            for path in attachments:
+                part = MIMEBase('application', 'octet-stream')
+                with open(path, 'rb') as f:
+                    part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
+                msg.attach(part)
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        return {'raw': raw}
+
+    def send_message(service, message):
         try:
-            server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-            server.login(sender_email, app_password)
-            server.quit()
-            st.sidebar.success("✅ Login successful!")
-            login_ok = True
-        except:
-            st.sidebar.error("❌ Invalid Gmail or App Password")
+            sent = service.users().messages().send(userId='me', body=message).execute()
+            return f"✅ Sent (ID: {sent['id']})"
+        except Exception as e:
+            return f"❌ Error: {e}"
 
-# Stop UI until login
-if not login_ok:
-    st.info("🔐 Please login from the sidebar to continue.")
-    st.stop()
+    # --- Gmail Service ---
+    creds = Credentials(
+        token=access_token,
+        client_id=client_id,
+        client_secret=client_secret,
+        token_uri="https://oauth2.googleapis.com/token"
+    )
+    service = build("gmail", "v1", credentials=creds)
 
-# -----------------------------------------
-# 📁 Upload Contacts
-# -----------------------------------------
-st.subheader("📁 Upload Contacts (CSV)")
-uploaded_file = st.file_uploader("Upload contacts.csv (columns: name,email)", type="csv")
+    # --- Pages ---
+    if page == "Compose Email":
+        st.subheader("📬 Compose Bulk Email")
 
-contacts = None
-if uploaded_file:
-    contacts = pd.read_csv(uploaded_file)
-    st.dataframe(contacts)
+        # Upload contacts
+        uploaded_file = st.file_uploader("Upload contacts CSV (name,email)", type="csv")
+        contacts = None
+        if uploaded_file:
+            contacts = pd.read_csv(uploaded_file)
+            st.dataframe(contacts)
 
-# -----------------------------------------
-# 📎 Attachments
-# -----------------------------------------
-st.subheader("📎 Upload Attachments (Optional)")
-uploaded_attachments = st.file_uploader("Upload files", accept_multiple_files=True)
+        # Upload attachments
+        uploaded_attachments = st.file_uploader("Upload attachments (optional)", type=None, accept_multiple_files=True)
+        attachment_paths = []
+        if uploaded_attachments:
+            for f in uploaded_attachments:
+                path = os.path.join(".", f.name)
+                with open(path, "wb") as out_file:
+                    out_file.write(f.getbuffer())
+                attachment_paths.append(path)
+            st.success(f"{len(attachment_paths)} attachment(s) ready")
 
-attachment_paths = []
-if uploaded_attachments:
-    for file in uploaded_attachments:
-        path = f"./{file.name}"
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-        attachment_paths.append(path)
-    st.success(f"Uploaded {len(attachment_paths)} attachment(s).")
+        # Email composition
+        sender = st.text_input("Sender Gmail", value="me")
+        subject = st.text_input("Subject")
+        body = st.text_area("Body (use {{name}} for personalization)")
 
-# -----------------------------------------
-# 📝 Email Composer
-# -----------------------------------------
-st.subheader("📝 Compose Your Email")
+        if st.button("🚀 Send Emails"):
+            if contacts is None:
+                st.warning("Upload contacts.csv first!")
+            elif not subject or not body:
+                st.warning("Fill subject and body fields!")
+            else:
+                st.info("Sending emails...")
+                logs = []
+                for _, row in contacts.iterrows():
+                    personalized = body.replace("{{name}}", row['name'])
+                    msg = create_message(sender, row['email'], subject, personalized, attachment_paths)
+                    status = send_message(service, msg)
+                    logs.append({'email': row['email'], 'status': status})
+                st.success("✅ All emails processed!")
+                st.dataframe(pd.DataFrame(logs))
+                pd.DataFrame(logs).to_csv("send_log.csv", index=False)
+                st.info("📁 Log saved as send_log.csv")
 
-subject = st.text_input("Subject")
-body = st.text_area("Email Body (Use {{name}} for personalization)")
+    elif page == "Templates":
+        st.subheader("📄 Email Templates")
+        if not os.path.exists("templates"):
+            os.makedirs("templates")
+        template_name = st.text_input("Template Name")
+        template_subject = st.text_input("Subject")
+        template_body = st.text_area("Body")
+        if st.button("💾 Save Template"):
+            data = {"subject": template_subject, "body": template_body}
+            with open(f"templates/{template_name}.json", "w") as f:
+                json.dump(data, f)
+            st.success(f"Template '{template_name}' saved!")
 
-# -----------------------------------------
-# 📤 Email Sending Function
-# -----------------------------------------
-def send_email(to, subject, body, attachments):
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = to
-    msg["Subject"] = subject
+        st.write("Available Templates:")
+        for file in os.listdir("templates"):
+            if file.endswith(".json"):
+                st.write(file.replace(".json", ""))
 
-    msg.attach(MIMEText(body, "plain"))
+    elif page == "Logs":
+        st.subheader("📊 Email Logs")
+        if os.path.exists("send_log.csv"):
+            df_logs = pd.read_csv("send_log.csv")
+            st.dataframe(df_logs)
+        else:
+            st.info("No logs available yet.")
 
-    # Attach files
-    for file in attachments:
-        with open(file, "rb") as f:
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(f.read())
-        
-        encoders.encode_base64(part)
-        part.add_header(
-            "Content-Disposition",
-            f"attachment; filename={os.path.basename(file)}"
-        )
-        msg.attach(part)
+    elif page == "Help":
+        st.subheader("💡 Help")
+        st.markdown("""
+        - Login with your Google account.  
+        - Upload a CSV file with contacts.  
+        - Compose email with {{name}} for personalization.  
+        - Attach files if needed.  
+        - Use Templates to save/reuse emails.  
+        - Check Logs for sent emails and failures.
+        """)
 
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(sender_email, app_password)
-            server.sendmail(sender_email, to, msg.as_string())
-
-        return "✔ Sent"
-    except Exception as e:
-        return f"❌ {str(e)}"
-
-# -----------------------------------------
-# 🚀 Send Emails Button
-# -----------------------------------------
-if st.button("🚀 Send Emails"):
-    if contacts is None:
-        st.warning("Upload contacts.csv first!")
-    elif not subject or not body:
-        st.warning("Please fill subject and body!")
-    else:
-        logs = []
-
-        for _, row in contacts.iterrows():
-            personalized_body = body.replace("{{name}}", row["name"])
-            status = send_email(row["email"], subject, personalized_body, attachment_paths)
-            logs.append({"email": row["email"], "status": status})
-
-        log_df = pd.DataFrame(logs)
-        st.dataframe(log_df)
-
-        log_df.to_csv("send_log.csv", index=False)
-        st.success("🎉 All emails processed!")
-        st.info("📁 Log saved as send_log.csv")
-
-st.markdown("----")
-st.markdown("💡 **Developed by Nabeel** | Simple Gmail Sender using SMTP + App Password")
