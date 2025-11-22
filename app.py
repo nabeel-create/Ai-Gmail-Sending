@@ -8,93 +8,101 @@ import pandas as pd
 import os, json, base64
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from streamlit_oauth import OAuth2Component
+import pickle
 
-# --- Page Config ---
+# --- Page Setup ---
 st.set_page_config(page_title="Professional Gmail Sender", page_icon="📧", layout="wide")
 st.title("📧 Professional Gmail Sender")
 st.caption("Login with your Gmail to send bulk emails securely")
 
-# --- Google OAuth Setup ---
-client_id = st.secrets["google"]["client_id"]
-client_secret = st.secrets["google"]["client_secret"]
-redirect_uri = st.secrets["google"]["redirect_uri"]
+# --- OAuth Setup ---
+CLIENT_ID = st.secrets["google"]["client_id"]
+CLIENT_SECRET = st.secrets["google"]["client_secret"]
+REDIRECT_URI = st.secrets["google"]["redirect_uri"]
 
-oauth = OAuth2Component(
-    client_id=client_id,
-    client_secret=client_secret,
-    redirect_uri=redirect_uri,
-    authorize_endpoint="https://accounts.google.com/o/oauth2/auth",
-    token_endpoint="https://oauth2.googleapis.com/token"
-)
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
-scopes = ["https://www.googleapis.com/auth/gmail.send"]
+if "creds" not in st.session_state:
+    st.session_state.creds = None
 
-# --- User Login ---
-if "token" not in st.session_state:
-    result = oauth.authorize_button("Login with Google", scopes=scopes)
-    if result:
-        st.session_state.token = result.get('token')
-        st.success("Logged in successfully!")
+# --- Step 1: Generate OAuth URL ---
+def get_authorization_url():
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        },
+        scopes=SCOPES,
+        redirect_uri=REDIRECT_URI
+    )
+    auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline')
+    st.session_state.flow = flow
+    return auth_url
+
+# --- Step 2: Exchange code for credentials ---
+if st.session_state.creds is None:
+    code = st.text_input("Paste the code from Google here:")
+    if code:
+        flow = st.session_state.flow
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        st.session_state.creds = creds
+        st.success("✅ Logged in successfully!")
         st.experimental_rerun()
+    else:
+        auth_url = get_authorization_url()
+        st.markdown(f"[Login with Google]({auth_url})")
 
-if "token" in st.session_state:
-    access_token = st.session_state.token["access_token"]
+# --- Email Functions ---
+def create_message(sender, to, subject, body_text, attachments=None):
+    msg = MIMEMultipart()
+    msg['to'] = to
+    msg['from'] = sender
+    msg['subject'] = subject
+    msg.attach(MIMEText(body_text, 'plain'))
+    if attachments:
+        for path in attachments:
+            part = MIMEBase('application', 'octet-stream')
+            with open(path, 'rb') as f:
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
+            msg.attach(part)
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    return {'raw': raw}
 
-    # --- Sidebar Navigation ---
+def send_message(service, message):
+    try:
+        sent = service.users().messages().send(userId='me', body=message).execute()
+        return f"✅ Sent (ID: {sent['id']})"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+# --- Main App (After Login) ---
+if st.session_state.creds:
+    creds = st.session_state.creds
+    service = build("gmail", "v1", credentials=creds)
+
     st.sidebar.title("Menu")
     page = st.sidebar.radio("Navigate", ["Compose Email", "Templates", "Logs", "Help"])
 
-    # --- Email Functions ---
-    def create_message(sender, to, subject, body_text, attachments=None):
-        msg = MIMEMultipart()
-        msg['to'] = to
-        msg['from'] = sender
-        msg['subject'] = subject
-        msg.attach(MIMEText(body_text, 'plain'))
-        if attachments:
-            for path in attachments:
-                part = MIMEBase('application', 'octet-stream')
-                with open(path, 'rb') as f:
-                    part.set_payload(f.read())
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
-                msg.attach(part)
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-        return {'raw': raw}
-
-    def send_message(service, message):
-        try:
-            sent = service.users().messages().send(userId='me', body=message).execute()
-            return f"✅ Sent (ID: {sent['id']})"
-        except Exception as e:
-            return f"❌ Error: {e}"
-
-    # --- Gmail Service ---
-    creds = Credentials(
-        token=access_token,
-        client_id=client_id,
-        client_secret=client_secret,
-        token_uri="https://oauth2.googleapis.com/token"
-    )
-    service = build("gmail", "v1", credentials=creds)
-
-    # --- Pages ---
     if page == "Compose Email":
         st.subheader("📬 Compose Bulk Email")
-
-        # Upload contacts
         uploaded_file = st.file_uploader("Upload contacts CSV (name,email)", type="csv")
         contacts = None
         if uploaded_file:
             contacts = pd.read_csv(uploaded_file)
             st.dataframe(contacts)
 
-        # Upload attachments
         uploaded_attachments = st.file_uploader("Upload attachments (optional)", type=None, accept_multiple_files=True)
         attachment_paths = []
         if uploaded_attachments:
@@ -105,7 +113,6 @@ if "token" in st.session_state:
                 attachment_paths.append(path)
             st.success(f"{len(attachment_paths)} attachment(s) ready")
 
-        # Email composition
         sender = st.text_input("Sender Gmail", value="me")
         subject = st.text_input("Subject")
         body = st.text_area("Body (use {{name}} for personalization)")
