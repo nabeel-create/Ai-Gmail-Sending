@@ -34,7 +34,7 @@ client_info = {
         "client_secret": st.secrets["google_oauth"]["client_secret"],
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": ["ai-gmail-sending-bynabeel.streamlit.app"]
+        "redirect_uris": ["https://ai-gmail-sending-bynabeel.streamlit.app/"]
     }
 }
 
