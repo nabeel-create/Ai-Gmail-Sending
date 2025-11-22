@@ -1,31 +1,48 @@
 # ============================
-# 📧 AI Gmail Sender – Multi-User Version
+# 📧 AI Gmail Sender – Multi-User Version (Final)
 # Author: Nabeel
 # ============================
 
 import streamlit as st
 import pandas as pd
 import os
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-import base64
-import smtplib
 
 # --- Page Setup ---
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
 st.title("📧 AI Gmail Sender")
 st.caption("Send personalized Gmail messages easily | Multi-User Supported")
 
-# --- Step 1: User Gmail Login ---
+# --- Step 1: Gmail Login ---
 st.subheader("🔑 Gmail Login")
-st.info("You need to enter your Gmail and App Password (for accounts with 2FA) or normal password if 2FA is off.")
+st.info("Enter your Gmail and App Password (or normal password if 2FA is OFF).")
+
 user_email = st.text_input("Your Gmail")
 user_password = st.text_input("App Password / Gmail Password", type="password")
 
-if not user_email or not user_password:
-    st.warning("Enter your Gmail and password to proceed.")
+login_status = False
+
+# Validate Gmail credentials
+if st.button("🔐 Login"):
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(user_email, user_password)
+
+        st.success("✅ Login successful! You can now send emails.")
+        login_status = True
+
+    except smtplib.SMTPAuthenticationError:
+        st.error("❌ Wrong password or invalid App Password. Please enter the correct password.")
+
+    except Exception as e:
+        st.error(f"⚠️ Login Error: {e}")
+
+# STOP app until login is successful
+if not login_status:
     st.stop()
 
 # --- Step 2: Upload Contacts ---
@@ -40,13 +57,15 @@ if uploaded_file:
 st.subheader("📎 Upload Attachments (optional)")
 uploaded_attachments = st.file_uploader("Upload one or more files", type=None, accept_multiple_files=True)
 attachment_paths = []
+
 if uploaded_attachments:
     for f in uploaded_attachments:
         path = os.path.join(".", f.name)
         with open(path, "wb") as out_file:
             out_file.write(f.getbuffer())
         attachment_paths.append(path)
-    st.success(f"{len(attachment_paths)} attachment(s) ready.")
+
+    st.success(f"{len(attachment_paths)} attachment(s) uploaded.")
 
 # --- Step 4: Compose Email ---
 st.subheader("📝 Compose Email")
@@ -66,18 +85,23 @@ def create_message(sender, to, subject, body_text, attachments=None):
             part = MIMEBase('application', 'octet-stream')
             with open(path, 'rb') as f:
                 part.set_payload(f.read())
+
             encoders.encode_base64(part)
             part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(path)}')
             msg.attach(part)
+
     return msg
 
 def send_email_smtp(sender_email, password, to_email, subject, body, attachments=None):
     try:
         msg = create_message(sender_email, to_email, subject, body, attachments)
+
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, password)
             server.sendmail(sender_email, to_email, msg.as_string())
-        return "✅ Sent"
+
+        return "✅ Sent Successfully"
+
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -86,20 +110,33 @@ if st.button("🚀 Send Emails"):
     if contacts is None:
         st.warning("Upload contacts.csv first!")
     elif not subject or not body:
-        st.warning("Fill subject and body fields!")
+        st.warning("Enter both subject and body!")
     else:
-        st.info("Sending emails...")
+        st.info("📨 Sending emails...")
+
         logs = []
-        progress_bar = st.progress(0)
+        progress = st.progress(0)
         total = len(contacts)
+
         for idx, row in contacts.iterrows():
-            personalized = body.replace("{{name}}", str(row['name']))
-            status = send_email_smtp(user_email, user_password, row['email'], subject, personalized, attachments=attachment_paths)
-            logs.append({'email': row['email'], 'status': status})
-            progress_bar.progress((idx + 1)/total)
-        st.success("✅ All emails processed!")
-        st.dataframe(pd.DataFrame(logs))
-        pd.DataFrame(logs).to_csv("send_log.csv", index=False)
+            personalized_body = body.replace("{{name}}", str(row['name']))
+            status = send_email_smtp(
+                user_email,
+                user_password,
+                row['email'],
+                subject,
+                personalized_body,
+                attachments=attachment_paths
+            )
+
+            logs.append({"email": row['email'], "status": status})
+            progress.progress((idx + 1) / total)
+
+        st.success("🎉 All emails processed!")
+        log_df = pd.DataFrame(logs)
+        st.dataframe(log_df)
+
+        log_df.to_csv("send_log.csv", index=False)
         st.info("📁 Log saved as send_log.csv")
 
 st.markdown("---")
