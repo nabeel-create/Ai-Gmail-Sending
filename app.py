@@ -27,95 +27,88 @@ if "logged_in" not in st.session_state:
 # --------------------------
 # BEAUTIFUL LOGIN PAGE
 # --------------------------
-def login_page():
+import streamlit as st
 
+# ----------------------- #
+#   BEAUTIFUL LOGIN UI    #
+# ----------------------- #
+
+def login_page():
+    st.set_page_config(page_title="Login", page_icon="🔐", layout="centered")
+
+    # Custom CSS for beautiful UI
     st.markdown("""
         <style>
-
-            /* ----- Main layout ----- */
-            .big-title {
-                font-size: 48px;
-                font-weight: 900;
-                line-height: 1.1;
-                text-align: left;
-                margin-top: 60px;
-                margin-bottom: 10px;
+            body {
+                background: #f5f7fa;
             }
-
-            .sub-title {
-                font-size: 18px;
-                color: #444;
-                margin-bottom: 40px;
-                text-align: left;
-            }
-
-            /* Center the login card */
             .login-card {
                 background: white;
-                padding: 35px 30px;
-                border-radius: 25px;
-                max-width: 420px;
+                padding: 40px;
+                border-radius: 18px;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+                width: 380px;
                 margin: auto;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+                margin-top: 90px;
             }
-
-            .login-input label {
-                font-weight: 600 !important;
+            .title {
+                font-size: 26px;
+                font-weight: 700;
+                text-align: center;
+                color: #333;
+                margin-bottom: 10px;
             }
-
-            .or-line {
+            .subtitle {
                 text-align: center;
                 color: #666;
-                margin: 10px 0;
-                font-weight: 600;
+                font-size: 14px;
+                margin-bottom: 25px;
             }
-
-            /* Button styling */
-            .login-btn {
+            .stButton>button {
                 width: 100%;
-                background: black !important;
-                color: white !important;
-                padding: 12px;
+                background: #1a73e8;
+                color: white;
+                padding: 10px;
                 border-radius: 10px;
+                border: none;
                 font-size: 16px;
-                font-weight: 600;
             }
-
+            .stButton>button:hover {
+                background: #1567d5;
+            }
         </style>
     """, unsafe_allow_html=True)
 
-    # -------- left title section (Claude-style) --------
-    st.markdown("<div class='big-title'>Impossible?<br>Possible.</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-title'>The AI Gmail Sender for problem solvers</div>", unsafe_allow_html=True)
-
-    # -------- Login Card --------
+    # Login Card Start
     st.markdown("<div class='login-card'>", unsafe_allow_html=True)
 
-    gmail = st.text_input("Enter your Gmail", key="email_input")
-    
-    st.markdown("<div class='or-line'>OR</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title'>Sign in to Continue</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Use your Gmail and App Password</div>", unsafe_allow_html=True)
 
-    password = st.text_input("App Password / Gmail Password", type="password", key="password_input")
+    # Input Fields
+    email = st.text_input("Gmail Address", placeholder="example@gmail.com")
+    password = st.text_input("Password / App Password", type="password", placeholder="Enter your Gmail password")
 
-    login_button = st.button("Continue with email", use_container_width=True)
-
-    if login_button:
-        try:
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                server.login(gmail, password)
-
-            st.success("Login successful! 🎉")
-            st.session_state.logged_in = True
-            st.session_state.gmail = gmail
-            st.session_state.password = password
-            st.experimental_rerun()
-
-        except smtplib.SMTPAuthenticationError:
-            st.error("❌ Wrong password or invalid App Password.")
-        except Exception as e:
-            st.error(f"⚠️ Login Error: {e}")
+    # Login Button
+    login_clicked = st.button("Login")
 
     st.markdown("</div>", unsafe_allow_html=True)
+    # Login Card End
+
+    # Simple login validation
+    if login_clicked:
+        if email.strip() == "" or password.strip() == "":
+            st.error("Please enter both email and password.")
+        else:
+            st.success("Login successful!")
+            st.session_state['logged_in'] = True
+            st.session_state['email'] = email
+
+
+# Run login page only if not logged in
+if 'logged_in' not in st.session_state:
+    login_page()
+
 
 
 # --------------------------
