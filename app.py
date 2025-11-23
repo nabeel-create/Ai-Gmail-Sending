@@ -11,6 +11,124 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – Gmail Sender</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f7f5f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            width: 900px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .left {
+            width: 50%;
+            padding: 60px;
+        }
+
+        .left h1 {
+            font-size: 40px;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .left h2 {
+            font-size: 32px;
+            color: #222;
+            margin-top: 0;
+        }
+
+        .left p {
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background: black;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        .right {
+            width: 50%;
+            background: url('https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=800&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="left">
+        <h1>Impossible?</h1>
+        <h2>Possible.</h2>
+        <p>The Gmail Automation Login Page</p>
+
+        <input type="email" id="email" placeholder="Enter your Gmail">
+        <input type="password" id="password" placeholder="Enter Gmail Password or App Password">
+
+        <button onclick="login()">Continue</button>
+    </div>
+
+    <div class="right"></div>
+</div>
+
+<script>
+function login() {
+    const email = document.getElementById("email").value.trim();
+    const pass = document.getElementById("password").value.trim();
+
+    if (!email || !pass) {
+        alert("Please enter Gmail and password.");
+        return;
+    }
+
+    // Temporary example check (you will connect backend later)
+    alert("Login successful! Redirecting to next page...");
+    window.location.href = "dashboard.html";
+}
+</script>
+
+</body>
+</html>
 
 # --------------------------
 # PAGE CONFIG
