@@ -23,16 +23,9 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="cente
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-
 # --------------------------
 # BEAUTIFUL LOGIN PAGE
 # --------------------------
-import streamlit as st
-
-# ----------------------- #
-#   BEAUTIFUL LOGIN UI    #
-# ----------------------- #
-
 def login_page():
     st.set_page_config(page_title="Login", page_icon="🔐", layout="centered")
 
@@ -76,6 +69,18 @@ def login_page():
             .stButton>button:hover {
                 background: #1567d5;
             }
+            .link {
+                text-align: center;
+                margin-top: 15px;
+            }
+            .link a {
+                color: #1a73e8;
+                text-decoration: none;
+                font-size: 14px;
+            }
+            .link a:hover {
+                text-decoration: underline;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -87,10 +92,18 @@ def login_page():
 
     # Input Fields
     email = st.text_input("Gmail Address", placeholder="example@gmail.com")
-    password = st.text_input("Password / App Password", type="password", placeholder="Enter your Gmail password")
+    password = st.text_input("Password / App Password", type="password", placeholder="Enter your Gmail App Password")
 
     # Login Button
     login_clicked = st.button("Login")
+
+    # App Password Info
+    st.markdown("""
+        <div class='link'>
+            Need help generating an App Password? 
+            <a href='https://support.google.com/accounts/answer/185833?hl=en' target='_blank'>Click here</a>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
     # Login Card End
@@ -104,10 +117,12 @@ def login_page():
             st.session_state['logged_in'] = True
             st.session_state['email'] = email
 
-
-# Run login page only if not logged in
-if 'logged_in' not in st.session_state:
-    login_page()
+# --------------------------
+# APP PAGE PLACEHOLDER
+# --------------------------
+def app_page():
+    st.title("Welcome to AI Gmail Sender")
+    st.write("You are logged in as:", st.session_state.get("email"))
 
 # --------------------------
 # APP FLOW CONTROLLER
