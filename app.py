@@ -32,81 +32,112 @@ import streamlit as st
 def login_page():
     st.set_page_config(page_title="Login", page_icon="🔐", layout="centered")
 
-    # -------------------- #
-    #     CUSTOM CSS       #
-    # -------------------- #
+    # --------------------
+    # CUSTOM CSS
+    # --------------------
     st.markdown("""
-        <style>
-            body {
-                background: linear-gradient(135deg, #e3f2fd, #fce4ec);
-            }
+    <style>
+        /* BODY BACKGROUND */
+        body {
+            background: linear-gradient(135deg, #e3f2fd, #fce4ec);
+            font-family: 'Segoe UI', sans-serif;
+        }
 
-            /* HEADER */
-            .header {
-                background: linear-gradient(90deg, #1a73e8, #d81b60);
-                padding: 25px;
-                border-radius: 0 0 18px 18px;
-                text-align: center;
-                color: white;
-                font-size: 28px;
-                font-weight: bold;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            }
+        /* HEADER */
+        .header {
+            background: linear-gradient(90deg, #1a73e8, #d81b60);
+            padding: 25px;
+            border-radius: 0 0 18px 18px;
+            text-align: center;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
 
-            /* CARD */
-            .login-card {
-                background: white;
-                padding: 40px;
-                border-radius: 18px;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.10);
-                width: 380px;
-                margin: auto;
-                margin-top: 40px;
-            }
+        /* LOGIN CARD */
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 18px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.10);
+            width: 380px;
+            margin: auto;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+        }
 
-            .title {
-                font-size: 24px;
-                font-weight: 700;
-                text-align: center;
-                color: #333;
-                margin-bottom: 10px;
-            }
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
 
-            .subtitle {
-                text-align: center;
-                color: #666;
-                font-size: 14px;
-                margin-bottom: 25px;
-            }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
 
-            /* BUTTON */
-            .stButton>button {
-                width: 100%;
-                background: linear-gradient(90deg, #1a73e8, #6a1b9a);
-                color: white;
-                padding: 10px;
-                border-radius: 10px;
-                border: none;
-                font-size: 16px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            }
-            .stButton>button:hover {
-                background: linear-gradient(90deg, #1565c0, #4a148c);
-            }
+        /* INPUT FIELDS */
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #1a73e8;
+            outline: none;
+            box-shadow: 0 0 5px rgba(26,115,232,0.5);
+        }
 
-        </style>
+        /* BUTTON */
+        .stButton>button {
+            width: 100%;
+            background: linear-gradient(90deg, #1a73e8, #6a1b9a);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .stButton>button:hover {
+            background: linear-gradient(90deg, #1565c0, #4a148c);
+        }
+
+        /* FORGOT PASSWORD LINK */
+        .forgot {
+            text-align: center;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .forgot a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .forgot a:hover {
+            text-decoration: underline;
+        }
+    </style>
     """, unsafe_allow_html=True)
 
-    # -------------------- #
-    #   HEADER SECTION     #
-    # -------------------- #
+    # --------------------
+    # HEADER
+    # --------------------
     st.markdown("<div class='header'>Gmail Login</div>", unsafe_allow_html=True)
 
-    # -------------------- #
-    #      LOGIN CARD      #
-    # -------------------- #
+    # --------------------
+    # LOGIN CARD
+    # --------------------
     st.markdown("<div class='login-card'>", unsafe_allow_html=True)
-
     st.markdown("<div class='title'>Sign In</div>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Use your Gmail and App Password</div>", unsafe_allow_html=True)
 
@@ -115,11 +146,12 @@ def login_page():
 
     login_clicked = st.button("Login")
 
+    st.markdown('<div class="forgot"><a href="#">Forgot Password?</a></div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------- #
-    #     LOGIN LOGIC      #
-    # -------------------- #
+    # --------------------
+    # LOGIN LOGIC
+    # --------------------
     if login_clicked:
         if email.strip() == "" or password.strip() == "":
             st.error("Please enter both email and password.")
@@ -127,7 +159,6 @@ def login_page():
             st.success("Login successful!")
             st.session_state['logged_in'] = True
             st.session_state['email'] = email
-
 
 # Run login page if user not logged in
 if 'logged_in' not in st.session_state:
