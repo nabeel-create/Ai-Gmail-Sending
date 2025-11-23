@@ -11,124 +11,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login – Gmail Sender</title>
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f7f5f2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            display: flex;
-            width: 900px;
-            background: white;
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .left {
-            width: 50%;
-            padding: 60px;
-        }
-
-        .left h1 {
-            font-size: 40px;
-            color: #222;
-            margin-bottom: 10px;
-        }
-
-        .left h2 {
-            font-size: 32px;
-            color: #222;
-            margin-top: 0;
-        }
-
-        .left p {
-            font-size: 18px;
-            margin-bottom: 40px;
-        }
-
-        input {
-            width: 100%;
-            padding: 14px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        button {
-            width: 100%;
-            padding: 15px;
-            font-size: 18px;
-            background: black;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        button:hover {
-            background: #333;
-        }
-
-        .right {
-            width: 50%;
-            background: url('https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=800&q=80');
-            background-size: cover;
-            background-position: center;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-    <div class="left">
-        <h1>Impossible?</h1>
-        <h2>Possible.</h2>
-        <p>The Gmail Automation Login Page</p>
-
-        <input type="email" id="email" placeholder="Enter your Gmail">
-        <input type="password" id="password" placeholder="Enter Gmail Password or App Password">
-
-        <button onclick="login()">Continue</button>
-    </div>
-
-    <div class="right"></div>
-</div>
-
-<script>
-function login() {
-    const email = document.getElementById("email").value.trim();
-    const pass = document.getElementById("password").value.trim();
-
-    if (!email || !pass) {
-        alert("Please enter Gmail and password.");
-        return;
-    }
-
-    // Temporary example check (you will connect backend later)
-    alert("Login successful! Redirecting to next page...");
-    window.location.href = "dashboard.html";
-}
-</script>
-
-</body>
-</html>
 
 # --------------------------
 # PAGE CONFIG
@@ -149,38 +31,73 @@ def login_page():
 
     st.markdown("""
         <style>
+
+            /* ----- Main layout ----- */
+            .big-title {
+                font-size: 48px;
+                font-weight: 900;
+                line-height: 1.1;
+                text-align: left;
+                margin-top: 60px;
+                margin-bottom: 10px;
+            }
+
+            .sub-title {
+                font-size: 18px;
+                color: #444;
+                margin-bottom: 40px;
+                text-align: left;
+            }
+
+            /* Center the login card */
             .login-card {
                 background: white;
-                padding: 40px;
-                border-radius: 20px;
+                padding: 35px 30px;
+                border-radius: 25px;
                 max-width: 420px;
                 margin: auto;
-                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            }
+
+            .login-input label {
+                font-weight: 600 !important;
+            }
+
+            .or-line {
                 text-align: center;
-            }
-            .login-title {
-                font-size: 32px;
-                font-weight: 700;
-                margin-bottom: 10px;
-                color: #333;
-            }
-            .sub {
                 color: #666;
-                font-size: 14px;
-                margin-bottom: 20px;
+                margin: 10px 0;
+                font-weight: 600;
             }
+
+            /* Button styling */
+            .login-btn {
+                width: 100%;
+                background: black !important;
+                color: white !important;
+                padding: 12px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+            }
+
         </style>
     """, unsafe_allow_html=True)
 
+    # -------- left title section (Claude-style) --------
+    st.markdown("<div class='big-title'>Impossible?<br>Possible.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-title'>The AI Gmail Sender for problem solvers</div>", unsafe_allow_html=True)
+
+    # -------- Login Card --------
     st.markdown("<div class='login-card'>", unsafe_allow_html=True)
 
-    st.markdown("<div class='login-title'>🔐 Gmail Login</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub'>Login with your Gmail to continue</div>", unsafe_allow_html=True)
+    gmail = st.text_input("Enter your Gmail", key="email_input")
+    
+    st.markdown("<div class='or-line'>OR</div>", unsafe_allow_html=True)
 
-    gmail = st.text_input("Enter Gmail Address")
-    password = st.text_input("App Password / Gmail Password", type="password")
+    password = st.text_input("App Password / Gmail Password", type="password", key="password_input")
 
-    login_button = st.button("Login")
+    login_button = st.button("Continue with email", use_container_width=True)
 
     if login_button:
         try:
@@ -194,7 +111,7 @@ def login_page():
             st.experimental_rerun()
 
         except smtplib.SMTPAuthenticationError:
-            st.error("❌ Wrong password or invalid App Password. Try again.")
+            st.error("❌ Wrong password or invalid App Password.")
         except Exception as e:
             st.error(f"⚠️ Login Error: {e}")
 
