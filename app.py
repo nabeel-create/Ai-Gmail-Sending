@@ -49,7 +49,7 @@ def login_page():
                 font-weight: 700;
                 text-align: center;
                 color: #333;
-                margin-bottom: 10px;
+                margin-bottom: 0px;
             }
             .subtitle {
                 text-align: center;
