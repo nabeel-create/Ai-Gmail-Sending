@@ -1,5 +1,5 @@
 # ============================
-# 📧 AI Gmail Sender – SMTP Version with Login
+# 📧 AI Gmail Sender – SMTP Version with One-Click Login Redirect
 # Author: Nabeel
 # ============================
 
@@ -47,10 +47,13 @@ def login_page():
                 server.login(email, password)
                 server.quit()
                 
+                # Save credentials in session_state
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
-                st.success("✅ Login successful! Redirecting...")
+                
+                # Redirect immediately to email sender page
+                st.experimental_rerun()
             except Exception as e:
                 st.error(f"❌ Login failed: {e}")
 
@@ -61,6 +64,7 @@ def email_sender_page():
     st.title("📧 AI Gmail Sender")
     st.caption(f"Logged in as: {st.session_state.sender_email}")
     
+    # Logout button
     if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
@@ -149,7 +153,7 @@ def email_sender_page():
             st.info("📁 Log saved as send_log.csv")
 
 # =========================
-# ROUTER
+# PAGE ROUTER
 # =========================
 if not st.session_state.logged_in:
     login_page()
