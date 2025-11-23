@@ -97,11 +97,11 @@ def login_page():
     # Login Button
     login_clicked = st.button("Login")
 
-    # App Password Info
+    # Direct App Password Link
     st.markdown("""
         <div class='link'>
-            Need help generating an App Password? 
-            <a href='https://support.google.com/accounts/answer/185833?hl=en' target='_blank'>Click here</a>
+            Need an App Password? 
+            <a href='https://myaccount.google.com/apppasswords' target='_blank'>Click here</a>
         </div>
     """, unsafe_allow_html=True)
 
