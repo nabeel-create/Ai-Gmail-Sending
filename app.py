@@ -36,6 +36,53 @@ st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
 
+/* LOGIN BOX */
+.login-box {
+    background: white;
+    width: 400px;
+    padding: 40px;
+    border-radius: 12px;
+    margin: auto;
+    margin-top: 100px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
+    border-top: 5px solid #d93025;
+    position: relative;
+    overflow: hidden;
+    animation: borderSlide 2s ease forwards;
+}
+
+/* Animated top border like Gmail */
+@keyframes borderSlide {
+    0% {
+        border-top-width: 0;
+        border-top-color: #d93025;
+    }
+    50% {
+        border-top-width: 5px;
+        border-top-color: #fbbc05;
+    }
+    100% {
+        border-top-width: 5px;
+        border-top-color: #34a853;
+    }
+}
+
+/* Optional: fade-in effect for box */
+.login-box::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -50%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(120deg, #d93025, #fbbc05, #34a853, #4285f4);
+    transform: skewX(-25deg);
+    animation: shine 2s forwards;
+}
+
+@keyframes shine {
+    0% { left: -50%; }
+    100% { left: 100%; }
+}
 
 
 /* LOGIN BUTTON */
