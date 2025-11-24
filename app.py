@@ -36,6 +36,24 @@ st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gmail Logo Animation</title>
+<style>
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f1f3f4;
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
 /* LOGIN BOX */
 .login-box {
     background: white;
@@ -43,46 +61,71 @@ body {background-color: #f5f5f5;}
     padding: 40px;
     border-radius: 12px;
     margin: auto;
-    margin-top: 100px;
     box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
-    border-top: 5px solid #d93025;
-    position: relative;
-    overflow: hidden;
-    animation: borderSlide 2s ease forwards;
+    opacity: 0;
+    transform: translateY(50px);
+    animation: fadeIn 1s forwards 2.5s; /* appears after logo animation */
 }
 
-/* Animated top border like Gmail */
-@keyframes borderSlide {
-    0% {
-        border-top-width: 0;
-        border-top-color: #d93025;
-    }
-    50% {
-        border-top-width: 5px;
-        border-top-color: #fbbc05;
-    }
-    100% {
-        border-top-width: 5px;
-        border-top-color: #34a853;
+/* Fade in login box */
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* Optional: fade-in effect for box */
-.login-box::before {
-    content: "";
-    position: absolute;
-    top: 0; left: -50%;
-    width: 200%;
-    height: 100%;
-    background: linear-gradient(120deg, #d93025, #fbbc05, #34a853, #4285f4);
-    transform: skewX(-25deg);
-    animation: shine 2s forwards;
+/* Google G animation */
+.google-logo {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 50px;
 }
 
-@keyframes shine {
-    0% { left: -50%; }
-    100% { left: 100%; }
+.google-logo div {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: red; /* will override per letter */
+    animation: bounce 0.6s forwards;
+    transform: translateY(-100px);
 }
+
+/* Individual colors like Gmail logo */
+.google-logo .g1 { background: #4285f4; animation-delay: 0s; }
+.google-logo .g2 { background: #ea4335; animation-delay: 0.1s; }
+.google-logo .g3 { background: #fbbc05; animation-delay: 0.2s; }
+.google-logo .g4 { background: #34a853; animation-delay: 0.3s; }
+
+/* Bounce animation */
+@keyframes bounce {
+    0% { transform: translateY(-100px); opacity: 0; }
+    60% { transform: translateY(20px); opacity: 1; }
+    80% { transform: translateY(-10px); }
+    100% { transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<div class="google-logo">
+    <div class="g1"></div>
+    <div class="g2"></div>
+    <div class="g3"></div>
+    <div class="g4"></div>
+</div>
+
+<div class="login-box">
+    <h2>Login</h2>
+    <input type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;">
+    <input type="password" placeholder="Password" style="width:100%;padding:10px;margin:10px 0;">
+    <button style="width:100%;padding:10px;background:#d93025;color:white;border:none;border-radius:5px;">Sign In</button>
+</div>
+
+</body>
+</html>
+
 
 
 /* LOGIN BUTTON */
