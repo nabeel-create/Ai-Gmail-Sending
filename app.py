@@ -30,10 +30,12 @@ if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
 # ------------------------
-# CUSTOM CSS
+# CUSTOM CSS (Gmail Logo Animation + UI)
 # ------------------------
 st.markdown("""
 <style>
+body {background-color: #f5f5f5;}
+
 /* LOGIN BOX */
 .login-box {
     background: white;
@@ -46,44 +48,6 @@ st.markdown("""
     position: relative;
     overflow: hidden;
 }
-
-/* LOGO ANIMATION */
-.gmail-logo {
-    width: 80px;
-    height: 80px;
-    margin: auto;
-    display: block;
-    position: relative;
-    animation: bounce 1.5s ease infinite;
-}
-
-/* Bounce effect like Gmail on page load */
-@keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-20px); }
-    60% { transform: translateY(-10px); }
-}
-
-/* Optional: colorful fade-in outline like Gmail colors */
-.gmail-logo::after {
-    content: "";
-    position: absolute;
-    top: -5px; left: -5px;
-    width: 90px; height: 90px;
-    border-radius: 50%;
-    border: 4px solid;
-    border-image: linear-gradient(45deg, #4285F4, #34A853, #FBBC05, #EA4335) 1;
-    animation: rotate 2s linear infinite;
-}
-
-@keyframes rotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 
 /* LOGIN BUTTON */
 .login-btn {
@@ -119,6 +83,38 @@ section[data-testid="stSidebar"] {
 
 /* FADEOUT ANIMATION */
 @keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
+
+/* Gmail Logo Animation */
+.gmail-logo {
+    width: 80px;
+    height: 80px;
+    margin: auto;
+    display: block;
+    position: relative;
+    animation: bounce 1.5s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-20px); }
+    60% { transform: translateY(-10px); }
+}
+
+.gmail-logo::after {
+    content: "";
+    position: absolute;
+    top: -5px; left: -5px;
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: 4px solid;
+    border-image: linear-gradient(45deg, #4285F4, #34A853, #FBBC05, #EA4335) 1;
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -145,8 +141,10 @@ def help_menu():
 # ------------------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
+    
+    # Gmail animated logo
+    st.markdown("<img class='gmail-logo' src='https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png'>", unsafe_allow_html=True)
+    
     st.markdown("### Sign in to continue")
 
     email = st.text_input("Gmail Address")
