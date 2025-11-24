@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+import time
 
 # ------------------------
 # PAGE CONFIG
@@ -168,8 +169,8 @@ def login_page():
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
 
-                st.success("Login successful! Redirecting...")
-                st.rerun()
+                st.success("Login successful! Please wait...")
+                st.experimental_rerun()
 
             except Exception as e:
                 st.error(f"Login failed: {e}")
@@ -180,15 +181,18 @@ def login_page():
 # EMAIL SENDER PAGE
 # ------------------------
 def email_sender_page():
-    # Show Gmail-style animation first
+    # Show Gmail-style animation once
     if st.session_state.show_welcome:
-        st.markdown("""
+        anim_placeholder = st.empty()
+        anim_placeholder.markdown("""
         <div class="gmail-logo-container">
             <div class="gmail-logo"></div>
         </div>
         """, unsafe_allow_html=True)
+        
+        time.sleep(3)  # wait for animation duration
+        anim_placeholder.empty()  # remove animation
         st.session_state.show_welcome = False
-        st.experimental_rerun()
 
     # Sidebar & logout
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
@@ -199,7 +203,7 @@ def email_sender_page():
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
         st.session_state.sender_password = ""
-        st.rerun()
+        st.experimental_rerun()
 
     st.title("📤 Send Email")
 
