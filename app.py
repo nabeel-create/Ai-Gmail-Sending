@@ -1,8 +1,3 @@
-# ================================================
-# 📧 AI Gmail Sender – Gmail Theme (Red & White)
-# Author: Nabeel
-# ================================================
-
 import streamlit as st
 import pandas as pd
 import smtplib
@@ -11,15 +6,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+import time
 
-# ------------------------
-# PAGE CONFIG
-# ------------------------
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
 
-# ------------------------
-# SESSION STATE INIT
-# ------------------------
+# ---------------- SESSION STATE ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "sender_email" not in st.session_state:
@@ -29,14 +20,10 @@ if "sender_password" not in st.session_state:
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
-# ------------------------
-# CUSTOM CSS
-# ------------------------
+# ---------------- CSS ----------------
 st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
-
-/* LOGIN BOX */
 .login-box {
     background: white;
     width: 400px;
@@ -48,8 +35,6 @@ body {background-color: #f5f5f5;}
     border-top: 5px solid #d93025;
     text-align: center;
 }
-
-/* LOGIN BUTTON */
 .login-btn {
     background-color: #d93025 !important;
     color: white !important;
@@ -57,49 +42,16 @@ body {background-color: #f5f5f5;}
     border-radius: 8px !important;
     font-weight: 600 !important;
 }
-
-/* SIDEBAR */
-section[data-testid="stSidebar"] {
-    background-color: white;
-    border-right: 2px solid #e3e3e3;
-}
 .sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
-
-/* CENTERED WELCOME */
-.welcome-popup {
-    position: fixed;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px 30px;
-    background: #d93025;
-    color: white;
-    font-size: 20px;
-    text-align: center;
-    border-radius: 12px;
-    animation: fadeout 3s forwards;
-    z-index: 9999;
-}
-
-/* FADEOUT ANIMATION */
-@keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
-  
 /* Gmail Logo Animation */
 .logo-animation {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 9999;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 50px;
-    animation: fadeInOut 3s forwards;
+    font-size: 60px;
+    font-weight: bold;
 }
 .logo-animation span {
-    font-weight: bold;
-    font-size: 60px;
     opacity: 0;
     display: inline-block;
     animation: bounce 1s forwards;
@@ -110,42 +62,24 @@ section[data-testid="stSidebar"] {
 .logo-animation span:nth-child(4) { color: #34A853; animation-delay: 0.6s; }
 .logo-animation span:nth-child(5) { color: #EA4335; animation-delay: 0.8s; }
 .logo-animation span:nth-child(6) { color: #4285F4; animation-delay: 1s; }
-
 @keyframes bounce {
     0% { transform: translateY(-50px); opacity: 0; }
-    50% { transform: translateY(0px); opacity: 1; }
-    100% { transform: translateY(0px); opacity: 1; }
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 1; }
-    70% { opacity: 1; }
-    100% { opacity: 0; display: none; }
+    50% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(0); opacity: 1; }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------------
-# HELP MENU BUTTON
-# ------------------------
+# ---------------- HELP MENU ----------------
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
         st.markdown("""
-        **Steps to login using Gmail App Password:**
         1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords).
-        2. Sign in with your Gmail account.
-        3. Select "Mail" → "Other (Custom name)" → Generate.
-        4. Copy the 16-character password into this app's password field.
-        
-        **Notes:**
-        - If 2FA is enabled, App Password is required.
-        - Normal Gmail password **will not work** if 2FA is enabled.
-        - You can generate multiple app passwords for multiple devices.
+        2. Generate a 16-character app password.
+        3. Use it here to login.
         """)
 
-# ------------------------
-# LOGIN PAGE
-# ------------------------
+# ---------------- LOGIN PAGE ----------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
@@ -154,14 +88,10 @@ def login_page():
     email = st.text_input("Gmail Address")
     password = st.text_input("Gmail App Password", type="password")
 
-    st.markdown(
-        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>", unsafe_allow_html=True)
+    help_menu()
 
-    help_menu()  # show three dots help
-
-    if st.button("Login", key="login_button"):
+    if st.button("Login"):
         if not email or not password:
             st.warning("Please enter both Email and App Password")
         else:
@@ -170,53 +100,46 @@ def login_page():
                 server.starttls()
                 server.login(email, password)
                 server.quit()
-
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-
-                st.success("Login successful! Redirecting...")
-                st.rerun()
-
+                st.success("Login successful! Loading animation...")
             except Exception as e:
                 st.error(f"Login failed: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ------------------------
-# EMAIL SENDER PAGE
-# ------------------------
+# ---------------- EMAIL SENDER PAGE ----------------
 def email_sender_page():
-    # Gmail Logo Animation after login
+    # Show Gmail-style animation if first login
     if st.session_state.show_welcome:
-        st.markdown("""
+        placeholder = st.empty()
+        placeholder.markdown("""
         <div class="logo-animation">
             <span>G</span><span>m</span><span>a</span><span>i</span><span>l</span>
         </div>
         """, unsafe_allow_html=True)
+        time.sleep(3)  # Show animation for 3 seconds
+        placeholder.empty()  # Remove animation
         st.session_state.show_welcome = False
-        st.experimental_rerun()  # Show animation first
 
+    # Sidebar
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
     help_menu()
-
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
         st.session_state.sender_password = ""
-        st.rerun()
+        st.experimental_rerun()
 
     st.title("📤 Send Email")
-
-    # Upload contacts
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
-    # Attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -226,7 +149,6 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # Compose Email
     subject = st.text_input("Subject")
     body = st.text_area("Body (use {{name}} for personalization)")
 
@@ -274,9 +196,7 @@ def email_sender_page():
             df.to_csv("send_log.csv", index=False)
             st.info("📁 Log saved as send_log.csv")
 
-# ------------------------
-# ROUTER
-# ------------------------
+# ---------------- ROUTER ----------------
 if not st.session_state.logged_in:
     login_page()
 else:
