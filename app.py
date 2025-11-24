@@ -1,192 +1,238 @@
-# =====================================================
+# ================================================
 # 📧 AI Gmail Sender – Gmail Theme (Red & White)
 # Author: Nabeel
-# =====================================================
+# ================================================
 
 import streamlit as st
-import time
+import pandas as pd
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import os
 
-# -----------------------------
-# Session Initialization
-# -----------------------------
+# ------------------------
+# PAGE CONFIG
+# ------------------------
+st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
+
+# ------------------------
+# SESSION STATE INIT
+# ------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-
+if "sender_email" not in st.session_state:
+    st.session_state.sender_email = ""
+if "sender_password" not in st.session_state:
+    st.session_state.sender_password = ""
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
+# ------------------------
+# CUSTOM CSS
+# ------------------------
+st.markdown("""
+<style>
+body {background-color: #f5f5f5;}
 
-# -----------------------------
-#   TOP-RIGHT MENU (3 DOTS)
-# -----------------------------
-def top_right_menu():
-    menu_css = """
-        <style>
-        .menu-dots {
-            position: fixed;
-            top: 15px;
-            right: 25px;
-            font-size: 26px;
-            cursor: pointer;
-            color: #D93025;
-            z-index: 999;
-        }
-        .menu-box {
-            position: fixed;
-            top: 55px;
-            right: 25px;
-            background: white;
-            padding: 15px;
-            width: 260px;
-            border-radius: 10px;
-            border: 1px solid #ddd;
-            box-shadow: 0px 4px 16px rgba(0,0,0,0.15);
-            z-index: 999;
-        }
-        </style>
-    """
-    st.markdown(menu_css, unsafe_allow_html=True)
+/* LOGIN BOX */
+.login-box {
+    background: white;
+    width: 400px;
+    padding: 40px;
+    border-radius: 12px;
+    margin: auto;
+    margin-top: 100px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
+    border-top: 5px solid #d93025;
+}
 
-    if "menu_open" not in st.session_state:
-        st.session_state.menu_open = False
+/* LOGIN BUTTON */
+.login-btn {
+    background-color: #d93025 !important;
+    color: white !important;
+    width: 100%;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+}
 
-    dots = st.markdown('<div class="menu-dots">⋮</div>', unsafe_allow_html=True)
+/* SIDEBAR */
+section[data-testid="stSidebar"] {
+    background-color: white;
+    border-right: 2px solid #e3e3e3;
+}
+.sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
 
-    # Toggle button (invisible)
-    dots_clicked = st.button(" ", key="menu_toggle_btn")
-    if dots_clicked:
-        st.session_state.menu_open = not st.session_state.menu_open
+/* CENTERED WELCOME */
+.welcome-popup {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 30px;
+    background: #d93025;
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    border-radius: 12px;
+    animation: fadeout 3s forwards;
+    z-index: 9999;
+}
 
-    if st.session_state.menu_open:
+/* FADEOUT ANIMATION */
+@keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------------
+# HELP MENU BUTTON (Three dots)
+# ------------------------
+def help_menu():
+    with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
         st.markdown("""
-            <div class="menu-box">
-                <h4>📘 How to Use Gmail Login</h4>
-                <p>If your Gmail account uses 2-Factor Authentication, you MUST use an <b>App Password</b>.</p>
+        **Steps to login using Gmail App Password:**
+        1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords).
+        2. Sign in with your Gmail account.
+        3. Select "Mail" → "Other (Custom name)" → Generate.
+        4. Copy the 16-character password into this app's password field.
+        
+        **Notes:**
+        - If 2FA is enabled, App Password is required.
+        - Normal Gmail password **will not work** if 2FA is enabled.
+        - You can generate multiple app passwords for multiple devices.
+        """)
 
-                <p><b>Steps:</b></p>
-                <ol>
-                    <li>Open Google Account</li>
-                    <li>Go to: Security → App Passwords</li>
-                    <li>Select: Mail + Windows</li>
-                    <li>Copy the 16-digit password</li>
-                    <li>Use it here instead of your actual Gmail password</li>
-                </ol>
-
-                <a href="https://myaccount.google.com/apppasswords" target="_blank">
-                    🔗 Open Google App Passwords
-                </a>
-            </div>
-        """, unsafe_allow_html=True)
-
-
-# -----------------------------
-#   LOGIN PAGE UI
-# -----------------------------
+# ------------------------
+# LOGIN PAGE
+# ------------------------
 def login_page():
+    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
 
-    st.set_page_config(page_title="Gmail Login", layout="centered")
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
+    st.markdown("### Sign in to continue")
 
-    page_css = """
-        <style>
-            body {
-                background: #fceeee;
-            }
-            .login-box {
-                margin-top: 90px;
-                background: white;
-                padding: 40px 50px;
-                border-radius: 18px;
-                width: 420px;
-                margin-left: auto;
-                margin-right: auto;
-                box-shadow: 0px 6px 25px rgba(0, 0, 0, 0.15);
-                border-top: 6px solid #D93025;
-            }
-            .title {
-                font-size: 32px;
-                text-align: center;
-                color: #D93025;
-                font-weight: 700;
-                margin-bottom: 10px;
-            }
-        </style>
-    """
-    st.markdown(page_css, unsafe_allow_html=True)
+    email = st.text_input("Gmail Address")
+    password = st.text_input("Gmail App Password", type="password")
 
-    top_right_menu()
+    st.markdown(
+        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
+        unsafe_allow_html=True
+    )
 
-    # UI Box
-    with st.container():
-        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+    help_menu()  # show three dots help
 
-        st.markdown("<div class='title'>Gmail Login</div>", unsafe_allow_html=True)
+    if st.button("Login", key="login_button"):
+        if not email or not password:
+            st.warning("Please enter both Email and App Password")
+        else:
+            try:
+                server = smtplib.SMTP("smtp.gmail.com", 587)
+                server.starttls()
+                server.login(email, password)
+                server.quit()
 
-        email = st.text_input("Gmail Address")
-        pwd = st.text_input("Password / App Password", type="password")
-
-        login_btn = st.button("Login", use_container_width=True)
-
-        if login_btn:
-            if email.strip() == "" or pwd.strip() == "":
-                st.error("Please fill all fields.")
-            else:
                 st.session_state.logged_in = True
+                st.session_state.sender_email = email
+                st.session_state.sender_password = password
                 st.session_state.show_welcome = True
+
+                st.success("Login successful! Redirecting...")
                 st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Login failed: {e}")
 
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# -----------------------------
-#   WELCOME POPUP
-# -----------------------------
-def welcome_popup():
-    popup_css = """
-        <style>
-            .welcome-msg {
-                position: fixed;
-                top: 45%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: white;
-                padding: 25px 40px;
-                border-radius: 16px;
-                border-left: 7px solid #D93025;
-                box-shadow: 0px 8px 25px rgba(0,0,0,0.18);
-                font-size: 22px;
-                font-weight: 600;
-                z-index: 9999;
-                color: #D93025;
-                text-align: center;
-            }
-        </style>
-    """
-    st.markdown(popup_css, unsafe_allow_html=True)
-    st.markdown('<div class="welcome-msg">🎉 Welcome Back!</div>', unsafe_allow_html=True)
+# ------------------------
+# EMAIL SENDER PAGE
+# ------------------------
+def email_sender_page():
+    if st.session_state.show_welcome:
+        st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
+        st.session_state.show_welcome = False
 
-    time.sleep(2)
-    st.session_state.show_welcome = False
-    st.rerun()
+    st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
+    st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
+    help_menu()
 
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.sender_email = ""
+        st.session_state.sender_password = ""
+        st.rerun()
 
-# -----------------------------
-#   MAIN APP PAGE
-# -----------------------------
-def app_page():
+    st.title("📤 Send Email")
 
-    st.title("📨 Gmail Sender Dashboard")
-    st.write("This is your main Gmail automation dashboard interface.")
+    # Upload contacts
+    contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
+    contacts = pd.read_csv(contacts_file) if contacts_file else None
+    if contacts is not None:
+        st.dataframe(contacts)
 
+    # Attachments
+    files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
+    attachment_paths = []
+    if files:
+        for f in files:
+            with open(f.name, "wb") as out:
+                out.write(f.getbuffer())
+            attachment_paths.append(f.name)
+        st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-# -----------------------------
-#   ROUTING
-# -----------------------------
+    # Compose Email
+    subject = st.text_input("Subject")
+    body = st.text_area("Body (use {{name}} for personalization)")
+
+    def create_message(sender, to, subject, text, attachments):
+        msg = MIMEMultipart()
+        msg["From"] = sender
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.attach(MIMEText(text, "plain"))
+        for path in attachments:
+            part = MIMEBase("application", "octet-stream")
+            with open(path, "rb") as f:
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(path)}")
+            msg.attach(part)
+        return msg
+
+    def send_email(to, msg):
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(st.session_state.sender_email, st.session_state.sender_password)
+            server.send_message(msg)
+            server.quit()
+            return "✅ Sent"
+        except Exception as e:
+            return f"❌ {e}"
+
+    if st.button("🚀 Send Emails"):
+        if contacts is None:
+            st.warning("Upload contact list first!")
+        elif not subject or not body:
+            st.warning("Fill all fields!")
+        else:
+            logs = []
+            for _, row in contacts.iterrows():
+                text = body.replace("{{name}}", str(row["name"]))
+                msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
+                status = send_email(row["email"], msg)
+                logs.append({"email": row["email"], "status": status})
+            df = pd.DataFrame(logs)
+            st.success("All emails processed!")
+            st.dataframe(df)
+            df.to_csv("send_log.csv", index=False)
+            st.info("📁 Log saved as send_log.csv")
+
+# ------------------------
+# ROUTER
+# ------------------------
 if not st.session_state.logged_in:
     login_page()
-
 else:
-    if st.session_state.show_welcome:
-        welcome_popup()
-
-    top_right_menu()
-    app_page()
+    email_sender_page()
