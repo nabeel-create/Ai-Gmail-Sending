@@ -1,5 +1,5 @@
 # ================================================
-# 📧 AI Gmail Sender – Gmail Theme with Gmail Logo Animation
+# 📧 AI Gmail Sender – Gmail Theme (Red & White)
 # Author: Nabeel
 # ================================================
 
@@ -47,6 +47,7 @@ body {background-color: #f5f5f5;}
     margin-top: 100px;
     box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
     border-top: 5px solid #d93025;
+    text-align: center;
 }
 
 /* LOGIN BUTTON */
@@ -66,59 +67,64 @@ section[data-testid="stSidebar"] {
 .sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
 
 /* Gmail Envelope Animation */
-.gmail-logo-container {
+.envelope-animation {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    width: 150px;
+    height: 120px;
     z-index: 9999;
-    width: 150px;
-    height: 100px;
+    animation: fadeOut 2.5s forwards;
 }
 
-/* Gmail M Envelope Shape */
-.gmail-logo {
-    width: 150px;
-    height: 100px;
+.envelope-animation .envelope {
     position: relative;
+    width: 100%;
+    height: 100%;
     background: white;
-    border: 2px solid transparent;
-    animation: fadeOut 2.5s forwards 2s;
+    border: 2px solid #d93025;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    overflow: hidden;
 }
 
-/* Envelope Triangles */
-.gmail-logo::before, .gmail-logo::after {
-    content: "";
+.envelope-animation .flap {
     position: absolute;
-    width: 75px;
-    height: 50px;
-    background: #d93025;
+    width: 50%;
+    height: 50%;
     top: 0;
-    z-index: 1;
+    background: #d93025;
     transform-origin: top center;
-    animation: fold 2s forwards;
+    animation: flapFold 1.2s forwards;
 }
 
-.gmail-logo::before { left: 0; transform: rotateX(90deg); animation-delay: 0s; }
-.gmail-logo::after { right: 0; transform: rotateX(90deg); animation-delay: 0.2s; }
+.envelope-animation .flap.left {
+    left: 0;
+    clip-path: polygon(100% 0, 0 0, 50% 100%);
+}
 
-/* Fold animation */
-@keyframes fold {
-    0% { transform: rotateX(90deg); }
-    50% { transform: rotateX(-20deg); }
+.envelope-animation .flap.right {
+    right: 0;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+@keyframes flapFold {
+    0% { transform: rotateX(0deg); }
+    50% { transform: rotateX(90deg); }
     100% { transform: rotateX(0deg); }
 }
 
-/* Fade Out whole logo */
 @keyframes fadeOut {
     0% { opacity: 1; }
+    80% { opacity: 1; }
     100% { opacity: 0; display: none; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------
-# HELP MENU BUTTON (Three dots)
+# HELP MENU BUTTON
 # ------------------------
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
@@ -169,8 +175,8 @@ def login_page():
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
 
-                st.success("Login successful! Please wait...")
-                st.experimental_rerun()
+                st.success("Login successful! Redirecting...")
+                st.rerun()
 
             except Exception as e:
                 st.error(f"Login failed: {e}")
@@ -181,20 +187,21 @@ def login_page():
 # EMAIL SENDER PAGE
 # ------------------------
 def email_sender_page():
-    # Show Gmail-style animation once
+    # -------------------- Gmail Envelope Animation --------------------
     if st.session_state.show_welcome:
-        anim_placeholder = st.empty()
-        anim_placeholder.markdown("""
-        <div class="gmail-logo-container">
-            <div class="gmail-logo"></div>
+        st.markdown("""
+        <div class="envelope-animation">
+            <div class="envelope"></div>
+            <div class="flap left"></div>
+            <div class="flap right"></div>
         </div>
         """, unsafe_allow_html=True)
         
-        time.sleep(3)  # wait for animation duration
-        anim_placeholder.empty()  # remove animation
         st.session_state.show_welcome = False
+        time.sleep(2.5)  # wait for animation
+        st.experimental_rerun()
 
-    # Sidebar & logout
+    # -------------------- Sidebar --------------------
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
     help_menu()
@@ -203,8 +210,9 @@ def email_sender_page():
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
         st.session_state.sender_password = ""
-        st.experimental_rerun()
+        st.rerun()
 
+    # -------------------- Email Sender UI --------------------
     st.title("📤 Send Email")
 
     # Upload contacts
