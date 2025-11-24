@@ -1,163 +1,258 @@
-# ============================
-# 📧 AI Gmail Sender – SMTP Version with Auto Redirect
+# =====================================================
+# 📧 AI Gmail Sender – Gmail Theme (Red & White)
 # Author: Nabeel
-# ============================
+# =====================================================
 
 import streamlit as st
 import pandas as pd
 import smtplib
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
 
-# --- Page Setup ---
-st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
+# -----------------------------------------------------
+# PAGE CONFIG
+# -----------------------------------------------------
+st.set_page_config(
+    page_title="AI Gmail Sender",
+    page_icon="📧",
+    layout="wide"
+)
 
-# --- Initialize session state ---
+# -----------------------------------------------------
+# SESSION STATE INIT
+# -----------------------------------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "sender_email" not in st.session_state:
     st.session_state.sender_email = ""
 if "sender_password" not in st.session_state:
     st.session_state.sender_password = ""
-if "contacts" not in st.session_state:
-    st.session_state.contacts = None
-if "attachments" not in st.session_state:
-    st.session_state.attachments = []
+if "show_welcome" not in st.session_state:
+    st.session_state.show_welcome = False
 
-# =========================
+# -----------------------------------------------------
+# CUSTOM CSS (Gmail Theme)
+# -----------------------------------------------------
+st.markdown("""
+<style>
+
+body {
+    background-color: #f5f5f5;
+}
+
+/* LOGIN PAGE BOX */
+.login-box {
+    background: white;
+    width: 400px;
+    padding: 40px;
+    border-radius: 12px;
+    margin: auto;
+    margin-top: 100px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
+    border-top: 5px solid #d93025; /* Gmail red */
+}
+
+/* RED LOGIN BUTTON */
+.login-btn {
+    background-color: #d93025;
+    color: white;
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.login-btn:hover {
+    background-color: #b52b21;
+}
+
+/* SIDEBAR Gmail Colors */
+section[data-testid="stSidebar"] {
+    background-color: white;
+    border-right: 2px solid #e3e3e3;
+}
+
+.sidebar-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #d93025;
+}
+
+/* WELCOME POPUP */
+.welcome-popup {
+    padding: 15px;
+    background: #d93025;
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    border-radius: 8px;
+    animation: fadeout 3s forwards;
+    margin-bottom: 10px;
+}
+
+@keyframes fadeout {
+  0% {opacity: 1;}
+  60% {opacity: 1;}
+  100% {opacity: 0;}
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# -----------------------------------------------------
 # LOGIN PAGE
-# =========================
+# -----------------------------------------------------
 def login_page():
-    st.title("🔐 Gmail Login")
-    st.subheader("Enter your Gmail credentials")
+    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
+    st.markdown("### Sign in to continue")
     
     email = st.text_input("Gmail Address")
-    password = st.text_input("Gmail App Password (recommended)", type="password")
-    
-    if st.button("Login"):
+    password = st.text_input("Gmail App Password", type="password")
+
+    st.markdown(
+        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>"
+        "<b>🔗 Create Gmail App Password</b></a>", 
+        unsafe_allow_html=True
+    )
+
+    if st.button("Login", key="login_button"):
         if not email or not password:
-            st.warning("Please fill in both fields!")
+            st.warning("Please enter both Email and App Password")
         else:
             try:
-                # Test SMTP login
                 server = smtplib.SMTP("smtp.gmail.com", 587)
                 server.starttls()
                 server.login(email, password)
                 server.quit()
-                
-                # Save credentials
+
+                # Save session
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
-                
-                st.success("✅ Login successful! Redirecting...")
-                
-                # NEW: use st.rerun() instead of experimental_rerun
-                st.rerun()
+                st.session_state.show_welcome = True
+
+                st.success("Login successful!")
+                st.experimental_rerun()
 
             except Exception as e:
-                st.error(f"❌ Login failed: {e}")
+                st.error(f"Login failed: {e}")
 
-# =========================
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# -----------------------------------------------------
 # EMAIL SENDER PAGE
-# =========================
+# -----------------------------------------------------
 def email_sender_page():
-    st.title("📧 Welcome to AI Gmail Sending System")
-    st.caption(f"Logged in as: {st.session_state.sender_email}")
-    
-    if st.button("Logout"):
+
+    # Welcome popup after login
+    if st.session_state.show_welcome:
+        st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
+        time.sleep(1)
+        st.session_state.show_welcome = False
+        st.experimental_rerun()
+
+    st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
+
+    if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
-        st.session_state.sender_email = ""
-        st.session_state.sender_password = ""
-        st.session_state.contacts = None
-        st.session_state.attachments = []
-        st.rerun()
-    
-    # --- Upload Contacts ---
-    st.subheader("📁 Upload Contacts")
-    uploaded_file = st.file_uploader("Upload contacts.csv (columns: name,email)", type="csv")
-    if uploaded_file:
-        st.session_state.contacts = pd.read_csv(uploaded_file)
-        st.dataframe(st.session_state.contacts)
-    
-    # --- Upload Attachments ---
-    st.subheader("📎 Upload Attachments (optional)")
-    uploaded_attachments = st.file_uploader("Upload one or more files", type=None, accept_multiple_files=True)
-    if uploaded_attachments:
-        st.session_state.attachments = []
-        for f in uploaded_attachments:
-            path = os.path.join(".", f.name)
-            with open(path, "wb") as out_file:
-                out_file.write(f.getbuffer())
-            st.session_state.attachments.append(path)
-        st.write(f"✅ {len(st.session_state.attachments)} attachment(s) ready")
-    
-    # --- Compose Email ---
-    st.subheader("📝 Compose Email")
+        st.experimental_rerun()
+
+    st.title("📤 Send Email")
+
+    # Upload Contacts
+    st.subheader("📁 Upload Contacts CSV")
+    contacts_file = st.file_uploader("Upload contact list (name,email)", type="csv")
+
+    if contacts_file:
+        contacts = pd.read_csv(contacts_file)
+        st.dataframe(contacts)
+    else:
+        contacts = None
+
+    # Attachments
+    st.subheader("📎 Add Attachments")
+    files = st.file_uploader("Upload files", accept_multiple_files=True)
+    attachment_paths = []
+
+    if files:
+        for file in files:
+            with open(file.name, "wb") as f:
+                f.write(file.getbuffer())
+            attachment_paths.append(file.name)
+
+    # Compose Email
     subject = st.text_input("Subject")
     body = st.text_area("Body (use {{name}} for personalization)")
-    
-    # --- Email Functions ---
-    def create_message(sender, to, subject, body_text, attachments=None):
+
+    # Create Message
+    def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
         msg["To"] = to
         msg["Subject"] = subject
-        msg.attach(MIMEText(body_text, "plain"))
-        
-        if attachments:
-            for path in attachments:
-                part = MIMEBase("application", "octet-stream")
-                with open(path, "rb") as f:
-                    part.set_payload(f.read())
-                encoders.encode_base64(part)
-                part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(path)}")
-                msg.attach(part)
+        msg.attach(MIMEText(text, "plain"))
+
+        for path in attachments:
+            part = MIMEBase("application", "octet-stream")
+            with open(path, "rb") as f:
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(path)}")
+            msg.attach(part)
+
         return msg
-    
-    def send_email_smtp(sender, password, msg):
+
+    # Send Email
+    def send_email(to, msg):
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
-            server.login(sender, password)
+            server.login(st.session_state.sender_email, st.session_state.sender_password)
             server.send_message(msg)
             server.quit()
-            return "✅ Sent"
+            return "Sent"
         except Exception as e:
-            return f"❌ Error: {e}"
-    
-    # --- Send Emails ---
+            return str(e)
+
+    # Send Button
     if st.button("🚀 Send Emails"):
-        if st.session_state.contacts is None:
-            st.warning("Upload contacts.csv first!")
+        if contacts is None:
+            st.warning("Upload contact list first!")
         elif not subject or not body:
-            st.warning("Fill in both subject and body!")
+            st.warning("Fill all fields!")
         else:
-            st.info("Sending emails...")
             logs = []
-            for _, row in st.session_state.contacts.iterrows():
-                personalized_body = body.replace("{{name}}", row["name"])
+
+            for _, row in contacts.iterrows():
+                text = body.replace("{{name}}", row["name"])
                 msg = create_message(
                     st.session_state.sender_email,
                     row["email"],
                     subject,
-                    personalized_body,
-                    st.session_state.attachments,
+                    text,
+                    attachment_paths,
                 )
-                status = send_email_smtp(st.session_state.sender_email, st.session_state.sender_password, msg)
+                status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
-            st.success("✅ All emails processed!")
-            df_logs = pd.DataFrame(logs)
-            st.dataframe(df_logs)
-            df_logs.to_csv("send_log.csv", index=False)
-            st.info("📁 Log saved as send_log.csv")
 
-# =========================
+            df = pd.DataFrame(logs)
+            st.success("All emails sent!")
+            st.dataframe(df)
+            df.to_csv("send_log.csv", index=False)
+            st.info("Log saved as send_log.csv")
+
+
+# -----------------------------------------------------
 # ROUTER
-# =========================
+# -----------------------------------------------------
 if not st.session_state.logged_in:
     login_page()
 else:
