@@ -52,10 +52,12 @@ def login_page():
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
+                
                 st.success("✅ Login successful! Redirecting...")
                 
-                # Auto redirect to email sender page
-                st.experimental_rerun()
+                # NEW: use st.rerun() instead of experimental_rerun
+                st.rerun()
+
             except Exception as e:
                 st.error(f"❌ Login failed: {e}")
 
@@ -63,7 +65,7 @@ def login_page():
 # EMAIL SENDER PAGE
 # =========================
 def email_sender_page():
-    st.title("📧 AI Gmail Sender")
+    st.title("📧 Welcome to AI Gmail Sending System")
     st.caption(f"Logged in as: {st.session_state.sender_email}")
     
     if st.button("Logout"):
@@ -72,7 +74,7 @@ def email_sender_page():
         st.session_state.sender_password = ""
         st.session_state.contacts = None
         st.session_state.attachments = []
-        st.experimental_rerun()
+        st.rerun()
     
     # --- Upload Contacts ---
     st.subheader("📁 Upload Contacts")
