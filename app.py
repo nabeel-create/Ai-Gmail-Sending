@@ -36,17 +36,7 @@ st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
 
-/* LOGIN BOX */
-.login-box {
-    background: white;
-    width: 400px;
-    padding: 40px;
-    border-radius: 12px;
-    margin: auto;
-    margin-top: 100px;
-    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
-    border-top: 5px solid #d93025;
-}
+
 
 /* LOGIN BUTTON */
 .login-btn {
