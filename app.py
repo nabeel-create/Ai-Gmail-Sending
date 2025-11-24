@@ -30,7 +30,7 @@ if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
 # ------------------------
-# CUSTOM CSS (Gmail Multi-Color Logo Animation)
+# CUSTOM CSS
 # ------------------------
 st.markdown("""
 <style>
@@ -45,8 +45,8 @@ body {background-color: #f5f5f5;}
     margin: auto;
     margin-top: 100px;
     box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
+    border-top: 5px solid #d93025;
     text-align: center;
-    position: relative;
 }
 
 /* LOGIN BUTTON */
@@ -81,37 +81,46 @@ section[data-testid="stSidebar"] {
     z-index: 9999;
 }
 
+/* FADEOUT ANIMATION */
 @keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
-
-/* Gmail Multi-Color Logo Animation */
-.gmail-logo {
-    width: 80px;
-    height: 80px;
-    margin: auto;
+  
+/* Gmail Logo Animation */
+.logo-animation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
     display: flex;
     justify-content: center;
     align-items: center;
-    position: relative;
+    font-size: 50px;
+    animation: fadeInOut 3s forwards;
 }
-
-.gmail-logo span {
-    width: 18px;
-    height: 18px;
+.logo-animation span {
+    font-weight: bold;
+    font-size: 60px;
+    opacity: 0;
     display: inline-block;
-    border-radius: 50%;
-    margin: 2px;
-    transform: scale(0);
-    animation: appear 0.6s forwards;
+    animation: bounce 1s forwards;
+}
+.logo-animation span:nth-child(1) { color: #4285F4; animation-delay: 0s; }
+.logo-animation span:nth-child(2) { color: #EA4335; animation-delay: 0.2s; }
+.logo-animation span:nth-child(3) { color: #FBBC05; animation-delay: 0.4s; }
+.logo-animation span:nth-child(4) { color: #34A853; animation-delay: 0.6s; }
+.logo-animation span:nth-child(5) { color: #EA4335; animation-delay: 0.8s; }
+.logo-animation span:nth-child(6) { color: #4285F4; animation-delay: 1s; }
+
+@keyframes bounce {
+    0% { transform: translateY(-50px); opacity: 0; }
+    50% { transform: translateY(0px); opacity: 1; }
+    100% { transform: translateY(0px); opacity: 1; }
 }
 
-.gmail-logo .blue {background: #4285F4; animation-delay: 0s;}
-.gmail-logo .red {background: #EA4335; animation-delay: 0.15s;}
-.gmail-logo .yellow {background: #FBBC05; animation-delay: 0.3s;}
-.gmail-logo .green {background: #34A853; animation-delay: 0.45s;}
-
-@keyframes appear {
-    0% { transform: scale(0); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+@keyframes fadeInOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; display: none; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -139,17 +148,7 @@ def help_menu():
 # ------------------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-    
-    # Gmail multi-color animated logo
-    st.markdown("""
-    <div class="gmail-logo">
-        <span class="blue"></span>
-        <span class="red"></span>
-        <span class="yellow"></span>
-        <span class="green"></span>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
     st.markdown("### Sign in to continue")
 
     email = st.text_input("Gmail Address")
@@ -160,7 +159,7 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    help_menu()
+    help_menu()  # show three dots help
 
     if st.button("Login", key="login_button"):
         if not email or not password:
@@ -189,9 +188,15 @@ def login_page():
 # EMAIL SENDER PAGE
 # ------------------------
 def email_sender_page():
+    # Gmail Logo Animation after login
     if st.session_state.show_welcome:
-        st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="logo-animation">
+            <span>G</span><span>m</span><span>a</span><span>i</span><span>l</span>
+        </div>
+        """, unsafe_allow_html=True)
         st.session_state.show_welcome = False
+        st.experimental_rerun()  # Show animation first
 
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
@@ -205,11 +210,13 @@ def email_sender_page():
 
     st.title("📤 Send Email")
 
+    # Upload contacts
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
+    # Attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -219,6 +226,7 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
+    # Compose Email
     subject = st.text_input("Subject")
     body = st.text_area("Body (use {{name}} for personalization)")
 
