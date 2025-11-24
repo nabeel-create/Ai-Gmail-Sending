@@ -11,7 +11,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-import time
 
 # ------------------------
 # PAGE CONFIG
@@ -38,26 +37,9 @@ st.markdown("""
 body {background-color: #f5f5f5;}
 
 /* LOGIN BOX */
-.login-box {
-    background: white;
-    width: 400px;
-    padding: 40px;
-    border-radius: 12px;
-    margin: auto;
-    margin-top: 100px;
-    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
-    border-top: 5px solid #d93025;
-    text-align: center;
-}
 
-/* LOGIN BUTTON */
-.login-btn {
-    background-color: #d93025 !important;
-    color: white !important;
-    width: 100%;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-}
+
+
 
 /* SIDEBAR */
 section[data-testid="stSidebar"] {
@@ -66,65 +48,29 @@ section[data-testid="stSidebar"] {
 }
 .sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
 
-/* Gmail Envelope Animation */
-.envelope-animation {
+/* CENTERED WELCOME */
+.welcome-popup {
     position: fixed;
-    top: 50%;
+    top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 150px;
-    height: 120px;
-    z-index: 9999;
-    animation: fadeOut 2.5s forwards;
-}
-
-.envelope-animation .envelope {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background: white;
-    border: 2px solid #d93025;
-    border-radius: 6px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    overflow: hidden;
-}
-
-.envelope-animation .flap {
-    position: absolute;
-    width: 50%;
-    height: 50%;
-    top: 0;
+    padding: 20px 30px;
     background: #d93025;
-    transform-origin: top center;
-    animation: flapFold 1.2s forwards;
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    border-radius: 12px;
+    animation: fadeout 3s forwards;
+    z-index: 9999;
 }
 
-.envelope-animation .flap.left {
-    left: 0;
-    clip-path: polygon(100% 0, 0 0, 50% 100%);
-}
-
-.envelope-animation .flap.right {
-    right: 0;
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
-}
-
-@keyframes flapFold {
-    0% { transform: rotateX(0deg); }
-    50% { transform: rotateX(90deg); }
-    100% { transform: rotateX(0deg); }
-}
-
-@keyframes fadeOut {
-    0% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { opacity: 0; display: none; }
-}
+/* FADEOUT ANIMATION */
+@keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------
-# HELP MENU BUTTON
+# HELP MENU BUTTON (Three dots)
 # ------------------------
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
@@ -187,21 +133,10 @@ def login_page():
 # EMAIL SENDER PAGE
 # ------------------------
 def email_sender_page():
-    # -------------------- Gmail Envelope Animation --------------------
     if st.session_state.show_welcome:
-        st.markdown("""
-        <div class="envelope-animation">
-            <div class="envelope"></div>
-            <div class="flap left"></div>
-            <div class="flap right"></div>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
         st.session_state.show_welcome = False
-        time.sleep(2.5)  # wait for animation
-        st.experimental_rerun()
 
-    # -------------------- Sidebar --------------------
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
     help_menu()
@@ -212,7 +147,6 @@ def email_sender_page():
         st.session_state.sender_password = ""
         st.rerun()
 
-    # -------------------- Email Sender UI --------------------
     st.title("📤 Send Email")
 
     # Upload contacts
