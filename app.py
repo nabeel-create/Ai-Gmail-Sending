@@ -36,11 +36,6 @@ st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
 
-/* LOGIN BOX */
-
-
-
-
 /* SIDEBAR */
 section[data-testid="stSidebar"] {
     background-color: white;
@@ -60,7 +55,7 @@ section[data-testid="stSidebar"] {
     font-size: 20px;
     text-align: center;
     border-radius: 12px;
-    animation: fadeout 3s forwards;
+    animation: fadeout 2s forwards;
     z-index: 9999;
 }
 
@@ -104,7 +99,8 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    help_menu()  # show three dots help
+    # Help menu ONLY on login page
+    help_menu()
 
     if st.button("Login", key="login_button"):
         if not email or not password:
@@ -139,8 +135,7 @@ def email_sender_page():
 
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
-    help_menu()
-
+    
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
