@@ -30,7 +30,7 @@ if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
 # ------------------------
-# CUSTOM CSS (Gmail Logo Animation + UI)
+# CUSTOM CSS (Gmail Multi-Color Logo Animation)
 # ------------------------
 st.markdown("""
 <style>
@@ -45,8 +45,8 @@ body {background-color: #f5f5f5;}
     margin: auto;
     margin-top: 100px;
     box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
+    text-align: center;
     position: relative;
-    overflow: hidden;
 }
 
 /* LOGIN BUTTON */
@@ -81,45 +81,43 @@ section[data-testid="stSidebar"] {
     z-index: 9999;
 }
 
-/* FADEOUT ANIMATION */
 @keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
 
-/* Gmail Logo Animation */
+/* Gmail Multi-Color Logo Animation */
 .gmail-logo {
     width: 80px;
     height: 80px;
     margin: auto;
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     position: relative;
-    animation: bounce 1.5s ease infinite;
 }
 
-@keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-20px); }
-    60% { transform: translateY(-10px); }
-}
-
-.gmail-logo::after {
-    content: "";
-    position: absolute;
-    top: -5px; left: -5px;
-    width: 90px; height: 90px;
+.gmail-logo span {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
     border-radius: 50%;
-    border: 4px solid;
-    border-image: linear-gradient(45deg, #4285F4, #34A853, #FBBC05, #EA4335) 1;
-    animation: rotate 2s linear infinite;
+    margin: 2px;
+    transform: scale(0);
+    animation: appear 0.6s forwards;
 }
 
-@keyframes rotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.gmail-logo .blue {background: #4285F4; animation-delay: 0s;}
+.gmail-logo .red {background: #EA4335; animation-delay: 0.15s;}
+.gmail-logo .yellow {background: #FBBC05; animation-delay: 0.3s;}
+.gmail-logo .green {background: #34A853; animation-delay: 0.45s;}
+
+@keyframes appear {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------
-# HELP MENU BUTTON (Three dots)
+# HELP MENU BUTTON
 # ------------------------
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
@@ -142,8 +140,15 @@ def help_menu():
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     
-    # Gmail animated logo
-    st.markdown("<img class='gmail-logo' src='https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png'>", unsafe_allow_html=True)
+    # Gmail multi-color animated logo
+    st.markdown("""
+    <div class="gmail-logo">
+        <span class="blue"></span>
+        <span class="red"></span>
+        <span class="yellow"></span>
+        <span class="green"></span>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("### Sign in to continue")
 
@@ -155,7 +160,7 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    help_menu()  # show three dots help
+    help_menu()
 
     if st.button("Login", key="login_button"):
         if not email or not password:
@@ -200,13 +205,11 @@ def email_sender_page():
 
     st.title("📤 Send Email")
 
-    # Upload contacts
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
-    # Attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -216,7 +219,6 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # Compose Email
     subject = st.text_input("Subject")
     body = st.text_area("Body (use {{name}} for personalization)")
 
