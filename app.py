@@ -1,6 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Gmail Theme (Red & White) + OpenRouter Python Client
-# Model: google/gemini-2.5-flash-lite
+# AI Email auto-generation with multiple tones/styles
 # ================================================
 
 import streamlit as st
@@ -35,6 +35,10 @@ if "selected_model" not in st.session_state:
     st.session_state.selected_model = "google/gemini-2.5-flash-lite"
 if "generated_body" not in st.session_state:
     st.session_state.generated_body = ""
+if "last_subject" not in st.session_state:
+    st.session_state.last_subject = ""
+if "email_style" not in st.session_state:
+    st.session_state.email_style = "Professional"
 
 # ------------------------
 # CUSTOM CSS
@@ -103,7 +107,7 @@ def help_menu():
 # ------------------------
 # OPENROUTER / AI EMAIL GENERATOR
 # ------------------------
-def generate_email_via_openrouter(prompt, model_name):
+def generate_email_via_openrouter(subject, style, model_name):
     try:
         if not st.session_state.openrouter_key:
             return "Error: OpenRouter API key not set!"
@@ -112,6 +116,8 @@ def generate_email_via_openrouter(prompt, model_name):
             base_url="https://openrouter.ai/api/v1",
             api_key=st.session_state.openrouter_key
         )
+        
+        prompt = f"Write a {style} email based on this subject: '{subject}'. Use polite and professional tone, ready to send."
         
         completion = client.chat.completions.create(
             model=model_name,
@@ -179,12 +185,17 @@ def email_sender_page():
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
     
+    # OpenRouter API key input
     key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
     st.session_state.openrouter_key = key_input.strip()
     
     # Fixed model
     model = st.sidebar.selectbox("Select model", ["google/gemini-2.5-flash-lite"], index=0)
     st.session_state.selected_model = model
+    
+    # Email style dropdown
+    style = st.selectbox("Select Email Style/Tone", ["Professional", "Formal", "Informal", "Friendly", "Casual"])
+    st.session_state.email_style = style
     
     if st.sidebar.button("Test OpenRouter Key & Model"):
         try:
@@ -209,6 +220,7 @@ def email_sender_page():
         st.session_state.sender_password = ""
         st.session_state.openrouter_key = ""
         st.session_state.generated_body = ""
+        st.session_state.last_subject = ""
         st.experimental_rerun()
     
     st.title("📤 Send Email")
@@ -228,17 +240,19 @@ def email_sender_page():
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
     
     subject = st.text_input("Subject")
-    body = st.text_area("Body (use {{name}} for personalization)")
     
-    if st.button("🤖 Generate Email with AI"):
-        if not subject:
-            st.warning("Please enter a subject first!")
-        else:
-            prompt = f"Write a professional email with subject: '{subject}'. Use polite and professional tone."
-            ai_body = generate_email_via_openrouter(prompt, st.session_state.selected_model)
-            st.session_state.generated_body = ai_body
-            st.text_area("AI Generated Body", value=ai_body, height=200)
+    # Auto-generate email body based on subject & style
+    if subject:
+        if st.session_state.last_subject != subject or not st.session_state.generated_body:
+            st.session_state.generated_body = generate_email_via_openrouter(subject, st.session_state.email_style, st.session_state.selected_model)
+            st.session_state.last_subject = subject
     
+    if st.session_state.generated_body:
+        st.text_area("AI Generated Body", value=st.session_state.generated_body, height=200)
+    
+    # ------------------------
+    # Email sending functions
+    # ------------------------
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -265,16 +279,16 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
     
+    # Send emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
-        elif not subject or (not body and not st.session_state.generated_body):
-            st.warning("Fill all fields or generate AI email!")
+        elif not subject or not st.session_state.generated_body:
+            st.warning("Fill subject to auto-generate email body!")
         else:
             logs = []
             for _, row in contacts.iterrows():
-                text = st.session_state.generated_body if st.session_state.generated_body else body
-                text = text.replace("{{name}}", str(row.get("name", "")))
+                text = st.session_state.generated_body.replace("{{name}}", str(row.get("name", "")))
                 msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
