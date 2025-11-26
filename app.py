@@ -109,7 +109,9 @@ def login_page():
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-                st.experimental_rerun()  # safe here at top-level
+                st.success("Login successful! Reload the page to continue.")
+                  return  # let Streamlit rerun naturally
+
             except Exception as e:
                 st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
