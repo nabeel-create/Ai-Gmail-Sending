@@ -1,7 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Auto Subject & Body from Description
 # Model: meta-llama/llama-3.3-70b-instruct:free
-# Secrets used for API keys and Gmail credentials
 # ================================================
 
 import streamlit as st
@@ -23,10 +22,11 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # SESSION STATE INIT
 # ------------------------
 for key in [
-    "logged_in", "show_welcome", "selected_model", "generated_body", "generated_subject"
+    "logged_in", "sender_email", "sender_password", "show_welcome", 
+    "selected_model", "generated_body", "generated_subject"
 ]:
     if key not in st.session_state:
-        st.session_state[key] = False if key in ["logged_in", "show_welcome"] else ""
+        st.session_state[key] = "" if "email" in key or "password" in key else False
 
 # ------------------------
 # CUSTOM CSS
@@ -53,7 +53,7 @@ def help_menu():
         1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords).
         2. Sign in with your Gmail account.
         3. Select "Mail" → "Other (Custom name)" → Generate.
-        4. Copy the 16-character password into Streamlit secrets file.
+        4. Copy the 16-character password into this app's password field.
 
         **Notes:**
         - If 2FA is enabled, App Password is required.
@@ -62,23 +62,14 @@ def help_menu():
         """)
 
 # ------------------------
-# SAFE SECRETS ACCESS
-# ------------------------
-def get_secrets():
-    openrouter_key = st.secrets.get("openrouter", {}).get("api_key", None)
-    gmail_email = st.secrets.get("gmail", {}).get("email", None)
-    gmail_password = st.secrets.get("gmail", {}).get("app_password", None)
-    return openrouter_key, gmail_email, gmail_password
-
-# ------------------------
-# OPENROUTER AI FUNCTION
+# OPENROUTER AI FUNCTION (LLaMA 3.3)
 # ------------------------
 def generate_email_via_openrouter(prompt, model_name):
-    openrouter_key, _, _ = get_secrets()
-    if not openrouter_key:
-        return "Error: OpenRouter API key not found in secrets!"
     try:
-        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key)
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=st.secrets["openrouter"]["api_key"]  # ✅ Using Streamlit secret
+        )
         completion = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -98,26 +89,30 @@ def generate_email_via_openrouter(prompt, model_name):
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
-    st.markdown("### Sign in using stored Gmail credentials")
+    st.markdown("### Sign in to continue")
+
+    email = st.text_input("Gmail Address", value=st.session_state.sender_email)
+    password = st.text_input("Gmail App Password", type="password", value=st.session_state.sender_password)
+    st.markdown("<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>", unsafe_allow_html=True)
     help_menu()
 
-    _, gmail_email, gmail_password = get_secrets()
-    if not gmail_email or not gmail_password:
-        st.error("Gmail credentials not found in Streamlit secrets!")
-        return
-
     if st.button("Login"):
-        try:
-            server = smtplib.SMTP("smtp.gmail.com", 587)
-            server.starttls()
-            server.login(gmail_email, gmail_password)
-            server.quit()
-            st.session_state.logged_in = True
-            st.session_state.show_welcome = True
-            st.success("Login successful! Redirecting...")
-            st.experimental_rerun()
-        except Exception as e:
-            st.error(f"Login failed: {e}")
+        if not email or not password:
+            st.warning("Enter Email & App Password")
+        else:
+            try:
+                server = smtplib.SMTP("smtp.gmail.com", 587)
+                server.starttls()
+                server.login(email, password)
+                server.quit()
+                st.session_state.logged_in = True
+                st.session_state.sender_email = email
+                st.session_state.sender_password = password
+                st.session_state.show_welcome = True
+                st.success("Login successful! Redirecting...")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------
@@ -128,33 +123,25 @@ def email_sender_page():
         st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
         st.session_state.show_welcome = False
 
-    _, gmail_email, _ = get_secrets()
-    if not gmail_email:
-        st.error("Gmail credentials missing in secrets!")
-        return
-
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
-    st.sidebar.write(f"Signed in as: **{gmail_email}**")
+    st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
 
-    # Model selection
+    # Model selection (LLaMA 3.3)
     model = st.sidebar.selectbox("Select model", ["meta-llama/llama-3.3-70b-instruct:free"], index=0)
     st.session_state.selected_model = model
 
     if st.sidebar.button("Test OpenRouter Key & Model"):
-        openrouter_key, _, _ = get_secrets()
-        if not openrouter_key:
-            st.error("OpenRouter API key missing!")
-        else:
-            try:
-                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key)
-                resp = client.chat.completions.create(model=model, messages=[{"role":"user","content":"Hello"}], max_tokens=5)
-                st.success("✅ Key and model are valid!")
-            except Exception as e:
-                st.error(f"Key or model invalid: {e}")
+        try:
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["openrouter"]["api_key"])
+            resp = client.chat.completions.create(model=model, messages=[{"role":"user","content":"Hello"}], max_tokens=5)
+            st.success("✅ Key and model are valid!")
+        except Exception as e:
+            st.error(f"Key or model invalid: {e}")
 
     help_menu()
     if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
+        for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
+            st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
         st.experimental_rerun()
 
     st.title("📤 Send Email")
@@ -215,13 +202,10 @@ def email_sender_page():
         return msg
 
     def send_email(to, msg):
-        _, gmail_email, gmail_password = get_secrets()
-        if not gmail_email or not gmail_password:
-            return "❌ Gmail credentials missing!"
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
-            server.login(gmail_email, gmail_password)
+            server.login(st.session_state.sender_email, st.session_state.sender_password)
             server.send_message(msg)
             server.quit()
             return "✅ Sent"
@@ -236,10 +220,9 @@ def email_sender_page():
             st.warning("Fill all fields or generate AI email!")
         else:
             logs = []
-            _, gmail_email, _ = get_secrets()
             for _, row in contacts.iterrows():
                 text_to_send = body.replace("{{name}}", str(row.get("name", "")))
-                msg = create_message(gmail_email, row["email"], subject, text_to_send, attachment_paths)
+                msg = create_message(st.session_state.sender_email, row["email"], subject, text_to_send, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
             df = pd.DataFrame(logs)
