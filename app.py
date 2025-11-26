@@ -1,6 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Gmail Theme (Red & White)
-# With FLAN-T5 Free AI Auto Email Writer
+# Offline AI Email Writer (flan-t5-small)
 # ================================================
 
 import streamlit as st
@@ -11,29 +11,26 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-import requests
 
 # ------------------------
-# AI EMAIL WRITER (FLAN-T5)
+# OFFLINE AI SETUP
 # ------------------------
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+@st.cache_resource(show_spinner=True)
+def load_ai_model():
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+    return tokenizer, model
+
+tokenizer, model = load_ai_model()
+
 def generate_email(prompt):
-    """
-    Free FLAN-T5 AI via HuggingFace public inference
-    No API key required, stable, permanent
-    """
-    try:
-        url = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 200}}
-        response = requests.post(url, json=payload)
-        data = response.json()
-        # Extract generated_text
-        if isinstance(data, list) and "generated_text" in data[0]:
-            return data[0]["generated_text"]
-        else:
-            return "AI could not generate text. Try again."
-    except Exception as e:
-        return f"AI Error: {e}"
-
+    """Generate email using offline FLAN-T5 model"""
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs, max_new_tokens=200)
+    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return text
 
 # ------------------------
 # PAGE CONFIG
@@ -43,17 +40,9 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 # SESSION STATE
 # ------------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "sender_email" not in st.session_state:
-    st.session_state.sender_email = ""
-if "sender_password" not in st.session_state:
-    st.session_state.sender_password = ""
-if "show_welcome" not in st.session_state:
-    st.session_state.show_welcome = False
-if "generated_email" not in st.session_state:
-    st.session_state.generated_email = ""
-
+for key in ["logged_in", "sender_email", "sender_password", "show_welcome", "generated_email"]:
+    if key not in st.session_state:
+        st.session_state[key] = False if key == "logged_in" else ""
 
 # ------------------------
 # CSS THEME
@@ -115,7 +104,6 @@ section[data-testid="stSidebar"] {
 </style>
 """, unsafe_allow_html=True)
 
-
 # ------------------------
 # HELP MENU
 # ------------------------
@@ -130,7 +118,6 @@ def help_menu():
 
 ⚠ Normal Gmail password will NOT work when 2FA is enabled.
         """)
-
 
 # ------------------------
 # LOGIN PAGE
@@ -151,7 +138,7 @@ def login_page():
 
     help_menu()
 
-    if st.button("Login", key="login_button"):
+    if st.button("Login"):
         if not email or not password:
             st.warning("Please enter both Email and App Password")
         else:
@@ -172,7 +159,6 @@ def login_page():
                 st.error(f"Login failed: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # ------------------------
 # EMAIL SENDER PAGE
@@ -209,9 +195,7 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # --------------------------
-    # AI EMAIL WRITER BUTTON
-    # --------------------------
+    # AI Auto-Write
     st.subheader("🤖 AI Auto-Write Email")
     topic = st.text_input("Enter topic (what is the email about?)")
     tone = st.selectbox("Choose tone", ["Formal", "Friendly", "Professional", "Soft", "Strict", "Marketing"])
@@ -221,8 +205,7 @@ def email_sender_page():
             st.warning("Please enter a topic for the AI.")
         else:
             prompt = f"Write a {tone} email about: {topic}. Include greeting and closing."
-            ai_text = generate_email(prompt)
-            st.session_state.generated_email = ai_text
+            st.session_state.generated_email = generate_email(prompt)
             st.success("AI Email Generated!")
 
     # Subject + Body
@@ -236,7 +219,6 @@ def email_sender_page():
         msg["To"] = to
         msg["Subject"] = subject
         msg.attach(MIMEText(text, "plain"))
-
         for path in attachments:
             part = MIMEBase("application", "octet-stream")
             with open(path, "rb") as f:
@@ -257,7 +239,6 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
 
-    # Send Emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
@@ -267,22 +248,15 @@ def email_sender_page():
             logs = []
             for _, row in contacts.iterrows():
                 text = body.replace("{{name}}", str(row["name"]))
-                msg = create_message(
-                    st.session_state.sender_email,
-                    row["email"],
-                    subject,
-                    text,
-                    attachment_paths,
-                )
+                msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
 
-            logs_df = pd.DataFrame(logs)
+            df = pd.DataFrame(logs)
             st.success("All emails processed!")
-            st.dataframe(logs_df)
-            logs_df.to_csv("send_log.csv", index=False)
+            st.dataframe(df)
+            df.to_csv("send_log.csv", index=False)
             st.info("📁 Log saved as send_log.csv")
-
 
 # ------------------------
 # ROUTER
