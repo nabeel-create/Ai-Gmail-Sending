@@ -1,5 +1,5 @@
 # ================================================ 
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Auto-Write (1.0+)
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI API Key Input
 # Author: Nabeel + OpenAI Integration
 # ================================================  
 
@@ -99,10 +99,12 @@ def help_menu():
         """)
 
 # ------------------------
-# OPENAI EMAIL GENERATOR (1.0+ compatible)
+# OPENAI EMAIL GENERATOR
 # ------------------------
 def generate_email_openai(prompt):
     try:
+        if not st.session_state.openai_key:
+            return "Error: OpenAI API key not set!"
         openai.api_key = st.session_state.openai_key
         chat = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -183,13 +185,11 @@ def email_sender_page():
     
     st.title("📤 Send Email")
     
-    # Upload contacts
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
     
-    # Attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -199,11 +199,9 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
     
-    # Compose Email
     subject = st.text_input("Subject")
     body = st.text_area("Body (use {{name}} for personalization)")
     
-    # AI Email Generator
     if st.button("🤖 Generate Email with AI"):
         if not subject:
             st.warning("Please enter a subject first!")
@@ -213,7 +211,6 @@ def email_sender_page():
             st.session_state.generated_body = ai_body
             st.text_area("AI Generated Body", value=ai_body, height=200)
     
-    # Create Email
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -240,7 +237,6 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
     
-    # Send Emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
