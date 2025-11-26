@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-from openai import OpenAI  # Used here to call OpenRouter API (supports Llama 3.3)
+from openai import OpenAI
 
 # ------------------------
 # PAGE CONFIG
@@ -21,7 +21,7 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 # SESSION STATE INIT
 # ------------------------
-for key in ["logged_in", "sender_email", "sender_password", "show_welcome", 
+for key in ["logged_in", "sender_email", "sender_password", "show_welcome",
             "openrouter_key", "selected_model", "generated_body", "generated_subject"]:
     if key not in st.session_state:
         st.session_state[key] = "" if "key" in key else False
@@ -130,7 +130,6 @@ def email_sender_page():
     key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
     st.session_state.openrouter_key = key_input.strip()
 
-    # Model selection (fixed to Llama 3.3)
     st.session_state.selected_model = "meta/llama-3.3-70b-instruct"
 
     help_menu()
