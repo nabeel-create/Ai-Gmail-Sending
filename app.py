@@ -1,6 +1,6 @@
-# ================================================
-# 📧 AI Gmail Sender – Gmail Theme (Red & White)
-# Offline AI Email Writer (flan-t5-small)
+# ================================================ 
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) with AI Email Generator
+# Author: Nabeel + AI integration
 # ================================================
 
 import streamlit as st
@@ -11,26 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-
-# ------------------------
-# OFFLINE AI SETUP
-# ------------------------
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-
-@st.cache_resource(show_spinner=True)
-def load_ai_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
-    return tokenizer, model
-
-tokenizer, model = load_ai_model()
-
-def generate_email(prompt):
-    """Generate email using offline FLAN-T5 model"""
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(**inputs, max_new_tokens=200)
-    text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return text
+import openai
 
 # ------------------------
 # PAGE CONFIG
@@ -38,69 +19,45 @@ def generate_email(prompt):
 st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide")
 
 # ------------------------
-# SESSION STATE
+# SESSION STATE INIT
 # ------------------------
-for key in ["logged_in", "sender_email", "sender_password", "show_welcome", "generated_email"]:
+for key in ["logged_in", "sender_email", "sender_password", "show_welcome"]:
     if key not in st.session_state:
-        st.session_state[key] = False if key == "logged_in" else ""
+        st.session_state[key] = False if key=="logged_in" else ""
 
 # ------------------------
-# CSS THEME
+# OPENAI API CONFIG
+# ------------------------
+openai.api_key = st.secrets.get("OPENAI_API_KEY")  # Store your key in Streamlit secrets
+
+def generate_email(subject, recipient_name):
+    """
+    Generate an AI email body using OpenAI API.
+    """
+    prompt = f"Write a professional and friendly email to '{recipient_name}' about '{subject}'. Keep it short and polite."
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=300
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        return f"Error generating email: {e}"
+
+# ------------------------
+# CUSTOM CSS
 # ------------------------
 st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
-
-.login-box {
-    background: white;
-    width: 400px;
-    padding: 40px;
-    border-radius: 12px;
-    margin: auto;
-    margin-top: 100px;
-    box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
-    border-top: 5px solid #d93025;
-}
-
-.login-btn {
-    background-color: #d93025 !important;
-    color: white !important;
-    width: 100%;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-}
-
-section[data-testid="stSidebar"] {
-    background-color: white;
-    border-right: 2px solid #e3e3e3;
-}
-
-.sidebar-title {
-    font-size: 22px;
-    font-weight: bold;
-    color: #d93025;
-}
-
-.welcome-popup {
-    position: fixed;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px 30px;
-    background: #d93025;
-    color: white;
-    font-size: 20px;
-    text-align: center;
-    border-radius: 12px;
-    animation: fadeout 3s forwards;
-    z-index: 9999;
-}
-
-@keyframes fadeout {
-    0% {opacity:1;}
-    70% {opacity:1;}
-    100% {opacity:0;}
-}
+.login-box {background: white; width: 400px; padding: 40px; border-radius: 12px; margin: auto; margin-top: 100px; box-shadow: 0px 4px 15px rgba(0,0,0,0.15); border-top: 5px solid #d93025;}
+.login-btn {background-color: #d93025 !important; color: white !important; width: 100%; border-radius: 8px !important; font-weight: 600 !important;}
+section[data-testid="stSidebar"] {background-color: white; border-right: 2px solid #e3e3e3;}
+.sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
+.welcome-popup {position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); padding: 20px 30px; background: #d93025; color: white; font-size: 20px; text-align: center; border-radius: 12px; animation: fadeout 3s forwards; z-index: 9999;}
+@keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -110,13 +67,16 @@ section[data-testid="stSidebar"] {
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
         st.markdown("""
-**Steps to login using Gmail App Password:**
+        **Steps to login using Gmail App Password:**  
+        1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords).  
+        2. Sign in with your Gmail account.  
+        3. Select "Mail" → "Other (Custom name)" → Generate.  
+        4. Copy the 16-character password into this app's password field.  
 
-1. Go to Google App Passwords.
-2. Select: Mail → Other (Custom name) → Generate.
-3. Copy 16-digit password into this app.
-
-⚠ Normal Gmail password will NOT work when 2FA is enabled.
+        **Notes:**  
+        - If 2FA is enabled, App Password is required.  
+        - Normal Gmail password **will not work** if 2FA is enabled.  
+        - You can generate multiple app passwords for multiple devices.
         """)
 
 # ------------------------
@@ -133,12 +93,12 @@ def login_page():
 
     st.markdown(
         "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     help_menu()
 
-    if st.button("Login"):
+    if st.button("Login", key="login_button"):
         if not email or not password:
             st.warning("Please enter both Email and App Password")
         else:
@@ -154,7 +114,8 @@ def login_page():
                 st.session_state.show_welcome = True
 
                 st.success("Login successful! Redirecting...")
-                st.rerun()
+                st.experimental_rerun()
+
             except Exception as e:
                 st.error(f"Login failed: {e}")
 
@@ -164,7 +125,6 @@ def login_page():
 # EMAIL SENDER PAGE
 # ------------------------
 def email_sender_page():
-
     if st.session_state.show_welcome:
         st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
         st.session_state.show_welcome = False
@@ -175,11 +135,13 @@ def email_sender_page():
 
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
-        st.rerun()
+        st.session_state.sender_email = ""
+        st.session_state.sender_password = ""
+        st.experimental_rerun()
 
-    st.title("📤 Send Email")
+    st.title("📤 Send Email with AI Auto-Write")
 
-    # Contacts
+    # Upload contacts
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
@@ -195,24 +157,20 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # AI Auto-Write
-    st.subheader("🤖 AI Auto-Write Email")
-    topic = st.text_input("Enter topic (what is the email about?)")
-    tone = st.selectbox("Choose tone", ["Formal", "Friendly", "Professional", "Soft", "Strict", "Marketing"])
-
-    if st.button("✨ Auto-Write Email with AI"):
-        if not topic:
-            st.warning("Please enter a topic for the AI.")
-        else:
-            prompt = f"Write a {tone} email about: {topic}. Include greeting and closing."
-            st.session_state.generated_email = generate_email(prompt)
-            st.success("AI Email Generated!")
-
-    # Subject + Body
+    # Compose Email
     subject = st.text_input("Subject")
-    body = st.text_area("Body (editable)", value=st.session_state.generated_email)
+    body = st.text_area("Body (use {{name}} for personalization)")
 
-    # Email creator
+    if st.button("🤖 Auto Generate Email"):
+        if not subject:
+            st.warning("Enter a subject first!")
+        else:
+            if contacts is not None:
+                # Generate AI email for first contact as sample
+                sample_name = contacts.iloc[0]["name"]
+                body = generate_email(subject, sample_name)
+                st.success("AI-generated email ready!")
+
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -247,11 +205,11 @@ def email_sender_page():
         else:
             logs = []
             for _, row in contacts.iterrows():
+                # Replace {{name}} placeholder
                 text = body.replace("{{name}}", str(row["name"]))
                 msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
-
             df = pd.DataFrame(logs)
             st.success("All emails processed!")
             st.dataframe(df)
