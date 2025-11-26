@@ -1,5 +1,5 @@
 # ================================================ 
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI API Key Input
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Key in Sidebar
 # Author: Nabeel + OpenAI Integration
 # ================================================  
 
@@ -104,7 +104,7 @@ def help_menu():
 def generate_email_openai(prompt):
     try:
         if not st.session_state.openai_key:
-            return "Error: OpenAI API key not set!"
+            return "Error: OpenAI API key not set in sidebar!"
         openai.api_key = st.session_state.openai_key
         chat = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -130,7 +130,6 @@ def login_page():
     
     email = st.text_input("Gmail Address")
     password = st.text_input("Gmail App Password", type="password")
-    api_key = st.text_input("OpenAI API Key (for AI email)", type="password")
     
     st.markdown(
         "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
@@ -140,8 +139,8 @@ def login_page():
     help_menu()
     
     if st.button("Login", key="login_button"):
-        if not email or not password or not api_key:
-            st.warning("Enter Email, App Password & OpenAI API Key")
+        if not email or not password:
+            st.warning("Enter Email & App Password")
         else:
             try:
                 server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -153,7 +152,6 @@ def login_page():
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-                st.session_state.openai_key = api_key
                 
                 st.success("Login successful! Redirecting...")
                 st.experimental_rerun()
@@ -171,8 +169,16 @@ def email_sender_page():
         st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
         st.session_state.show_welcome = False
     
+    # ------------------------
+    # SIDEBAR: OPENAI API KEY INPUT + LOGOUT
+    # ------------------------
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
+    
+    # OpenAI API Key input in sidebar
+    api_key_input = st.sidebar.text_input("OpenAI API Key", type="password", value=st.session_state.openai_key)
+    st.session_state.openai_key = api_key_input
+    
     help_menu()
     
     if st.sidebar.button("Logout"):
@@ -183,6 +189,9 @@ def email_sender_page():
         st.session_state.openai_key = ""
         st.experimental_rerun()
     
+    # ------------------------
+    # MAIN PAGE: Email sending
+    # ------------------------
     st.title("📤 Send Email")
     
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
