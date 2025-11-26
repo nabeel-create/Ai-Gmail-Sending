@@ -1,7 +1,6 @@
-# ================================================ 
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Key in Sidebar
-# Author: Nabeel + OpenAI Integration
-# ================================================  
+# ================================================
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) + OpenRouter support
+# ================================================
 
 import streamlit as st
 import pandas as pd
@@ -29,10 +28,15 @@ if "sender_password" not in st.session_state:
     st.session_state.sender_password = ""
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
+
+# For OpenRouter integration:
+if "openrouter_key" not in st.session_state:
+    st.session_state.openrouter_key = ""
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "openai/gpt-3.5-turbo"
+
 if "generated_body" not in st.session_state:
     st.session_state.generated_body = ""
-if "openai_key" not in st.session_state:
-    st.session_state.openai_key = ""
 
 # ------------------------
 # CUSTOM CSS
@@ -99,15 +103,18 @@ def help_menu():
         """)
 
 # ------------------------
-# OPENAI EMAIL GENERATOR
+# OPENROUTER / ChatCompletion Email Generator
 # ------------------------
-def generate_email_openai(prompt):
+def generate_email_via_openrouter(prompt, model_name):
     try:
-        if not st.session_state.openai_key:
-            return "Error: OpenAI API key not set in sidebar!"
-        openai.api_key = st.session_state.openai_key
-        chat = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
+        if not st.session_state.openrouter_key:
+            return "Error: OpenRouter API key not set!"
+        # Configure OpenAI client to point to OpenRouter
+        openai.api_base = "https://openrouter.ai/api/v1"
+        openai.api_key = st.session_state.openrouter_key.strip()
+        # Optional: headers for referencing your app (not mandatory)
+        completion = openai.chat.completions.create(
+            model=model_name,
             messages=[
                 {"role": "system", "content": "You are a professional email writer."},
                 {"role": "user", "content": prompt}
@@ -115,7 +122,7 @@ def generate_email_openai(prompt):
             temperature=0.7,
             max_tokens=400
         )
-        return chat.choices[0].message.content
+        return completion.choices[0].message.content
     except Exception as e:
         return f"Error generating email: {e}"
 
@@ -169,15 +176,22 @@ def email_sender_page():
         st.markdown("<div class='welcome-popup'>🎉 Welcome to AI Gmail Sending System!</div>", unsafe_allow_html=True)
         st.session_state.show_welcome = False
     
-    # ------------------------
-    # SIDEBAR: OPENAI API KEY INPUT + LOGOUT
-    # ------------------------
+    # Sidebar: openrouter key + model select + logout
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
     
-    # OpenAI API Key input in sidebar
-    api_key_input = st.sidebar.text_input("OpenAI API Key", type="password", value=st.session_state.openai_key)
-    st.session_state.openai_key = api_key_input
+    key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
+    st.session_state.openrouter_key = key_input.strip()
+    
+    # Model selection dropdown
+    model = st.sidebar.selectbox("Select model", [
+        "openai/gpt-3.5-turbo",
+        "openai/gpt-4o",
+        "anthropic/claude-3-opus",
+        "mistralai/mistral-large",
+        "meta-llama/llama-3-8b-instruct"
+    ], index=0)
+    st.session_state.selected_model = model
     
     help_menu()
     
@@ -185,20 +199,19 @@ def email_sender_page():
         st.session_state.logged_in = False
         st.session_state.sender_email = ""
         st.session_state.sender_password = ""
+        st.session_state.openrouter_key = ""
         st.session_state.generated_body = ""
-        st.session_state.openai_key = ""
         st.experimental_rerun()
     
-    # ------------------------
-    # MAIN PAGE: Email sending
-    # ------------------------
     st.title("📤 Send Email")
     
+    # Upload contacts CSV
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
     
+    # Upload attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -215,8 +228,8 @@ def email_sender_page():
         if not subject:
             st.warning("Please enter a subject first!")
         else:
-            prompt = f"Write a professional email with subject: '{subject}'"
-            ai_body = generate_email_openai(prompt)
+            prompt = f"Write a professional email with subject: '{subject}'. Use polite and professional tone."
+            ai_body = generate_email_via_openrouter(prompt, st.session_state.selected_model)
             st.session_state.generated_body = ai_body
             st.text_area("AI Generated Body", value=ai_body, height=200)
     
@@ -255,7 +268,7 @@ def email_sender_page():
             logs = []
             for _, row in contacts.iterrows():
                 text = st.session_state.generated_body if st.session_state.generated_body else body
-                text = text.replace("{{name}}", str(row["name"]))
+                text = text.replace("{{name}}", str(row.get("name", "")))
                 msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
