@@ -1,6 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Auto Subject & Body from Description
-# Model: Meta Llama 3.3 70B Instruct
+# Model: google/gemini-2.5-flash-lite
 # ================================================
 
 import streamlit as st
@@ -21,7 +21,7 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 # SESSION STATE INIT
 # ------------------------
-for key in ["logged_in", "sender_email", "sender_password", "show_welcome",
+for key in ["logged_in", "sender_email", "sender_password", "show_welcome", 
             "openrouter_key", "selected_model", "generated_body", "generated_subject"]:
     if key not in st.session_state:
         st.session_state[key] = "" if "key" in key else False
@@ -62,7 +62,7 @@ def help_menu():
 # ------------------------
 # OPENROUTER AI FUNCTION
 # ------------------------
-def generate_email_via_openrouter(prompt, model_name="meta/llama-3.3-70b-instruct"):
+def generate_email_via_openrouter(prompt, model_name):
     try:
         if not st.session_state.openrouter_key:
             return "Error: OpenRouter API key not set!"
@@ -130,7 +130,17 @@ def email_sender_page():
     key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
     st.session_state.openrouter_key = key_input.strip()
 
-    st.session_state.selected_model = "meta/llama-3.3-70b-instruct"
+    # Model selection
+    model = st.sidebar.selectbox("Select model", ["google/gemini-2.5-flash-lite"], index=0)
+    st.session_state.selected_model = model
+
+    if st.sidebar.button("Test OpenRouter Key & Model"):
+        try:
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.session_state.openrouter_key)
+            resp = client.chat.completions.create(model=model, messages=[{"role":"user","content":"Hello"}], max_tokens=5)
+            st.success("✅ Key and model are valid!")
+        except Exception as e:
+            st.error(f"Key or model invalid: {e}")
 
     help_menu()
     if st.sidebar.button("Logout"):
