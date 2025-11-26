@@ -22,7 +22,7 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # SESSION STATE INIT
 # ------------------------
 for key in [
-    "logged_in", "sender_email", "sender_password", "show_welcome", 
+    "logged_in", "sender_email", "sender_password", "show_welcome",
     "generated_body", "generated_subject"
 ]:
     if key not in st.session_state:
@@ -109,8 +109,7 @@ def login_page():
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-                st.success("Login successful! Redirecting...")
-                st.experimental_rerun()
+                st.experimental_rerun()  # safe here at top-level
             except Exception as e:
                 st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -129,20 +128,21 @@ def email_sender_page():
     # Fixed model (no selection)
     st.session_state.selected_model = "meta-llama/llama-3.3-70b-instruct:free"
 
+    # ------------------------ LOGOUT ------------------------
     if st.sidebar.button("Logout"):
         for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
             st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
-        st.experimental_rerun()
+        return  # ✅ safe logout without st.experimental_rerun() crash
 
     st.title("📤 Send Email")
 
-    # Upload contacts CSV
+    # ------------------------ UPLOAD CONTACTS ------------------------
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
-    # Upload attachments
+    # ------------------------ UPLOAD ATTACHMENTS ------------------------
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -152,10 +152,9 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # Description input
+    # ------------------------ EMAIL DESCRIPTION ------------------------
     description = st.text_area("📌 Enter Email Description (what the email should say)")
 
-    # Auto-generate email
     if st.button("🤖 Auto Generate Subject & Email"):
         if not description:
             st.warning("Please enter a description first!")
@@ -169,13 +168,11 @@ def email_sender_page():
                 st.session_state.generated_subject = "Generated Subject"
                 st.session_state.generated_body = ai_response
 
-    # Display subject & body
+    # ------------------------ DISPLAY SUBJECT & BODY ------------------------
     subject = st.text_input("Subject", value=st.session_state.generated_subject)
     body = st.text_area("Email Body", value=st.session_state.generated_body, height=200)
 
-    # ------------------------
-    # SEND EMAIL FUNCTIONS
-    # ------------------------
+    # ------------------------ SEND EMAIL FUNCTIONS ------------------------
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -202,7 +199,6 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
 
-    # Send Emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
@@ -222,7 +218,7 @@ def email_sender_page():
             st.info("📁 Log saved as send_log.csv")
 
 # ------------------------
-# ROUTER
+# MAIN ROUTER
 # ------------------------
 if not st.session_state.logged_in:
     login_page()
