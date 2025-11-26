@@ -1,6 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Auto Subject & Body from Description
-# Model: google/gemini-2.5-flash-lite
+# Model: meta-llama/llama-3.3-70b-instruct:free
 # ================================================
 
 import streamlit as st
@@ -21,10 +21,12 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 # SESSION STATE INIT
 # ------------------------
-for key in ["logged_in", "sender_email", "sender_password", "show_welcome", 
-            "openrouter_key", "selected_model", "generated_body", "generated_subject"]:
+for key in [
+    "logged_in", "sender_email", "sender_password", "show_welcome", 
+    "openrouter_key", "selected_model", "generated_body", "generated_subject"
+]:
     if key not in st.session_state:
-        st.session_state[key] = "" if "key" in key else False
+        st.session_state[key] = "" if "key" in key or "email" in key or "password" in key else False
 
 # ------------------------
 # CUSTOM CSS
@@ -60,7 +62,7 @@ def help_menu():
         """)
 
 # ------------------------
-# OPENROUTER AI FUNCTION
+# OPENROUTER AI FUNCTION (LLaMA 3.3)
 # ------------------------
 def generate_email_via_openrouter(prompt, model_name):
     try:
@@ -91,8 +93,8 @@ def login_page():
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
     st.markdown("### Sign in to continue")
 
-    email = st.text_input("Gmail Address")
-    password = st.text_input("Gmail App Password", type="password")
+    email = st.text_input("Gmail Address", value=st.session_state.sender_email)
+    password = st.text_input("Gmail App Password", type="password", value=st.session_state.sender_password)
     st.markdown("<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>", unsafe_allow_html=True)
     help_menu()
 
@@ -126,12 +128,12 @@ def email_sender_page():
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
 
-    # OpenRouter key
+    # OpenRouter API key
     key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
     st.session_state.openrouter_key = key_input.strip()
 
-    # Model selection
-    model = st.sidebar.selectbox("Select model", ["google/gemini-2.5-flash-lite"], index=0)
+    # Model selection (LLaMA 3.3)
+    model = st.sidebar.selectbox("Select model", ["meta-llama/llama-3.3-70b-instruct:free"], index=0)
     st.session_state.selected_model = model
 
     if st.sidebar.button("Test OpenRouter Key & Model"):
@@ -144,23 +146,19 @@ def email_sender_page():
 
     help_menu()
     if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.sender_email = ""
-        st.session_state.sender_password = ""
-        st.session_state.openrouter_key = ""
-        st.session_state.generated_body = ""
-        st.session_state.generated_subject = ""
+        for key in ["logged_in", "sender_email", "sender_password", "openrouter_key", "generated_body", "generated_subject"]:
+            st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
         st.experimental_rerun()
 
     st.title("📤 Send Email")
 
-    # 1️⃣ Upload contacts CSV
+    # Upload contacts CSV
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
-    # 2️⃣ Upload attachments
+    # Upload attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -170,36 +168,25 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # 3️⃣ Description input
+    # Description input
     description = st.text_area("📌 Enter Email Description (what the email should say)")
 
-    # 4️⃣ Auto generate button
+    # Auto-generate email
     if st.button("🤖 Auto Generate Subject & Email"):
         if not description:
             st.warning("Please enter a description first!")
         else:
-            prompt = (
-                f"Based on the following description, write a professional email.\n\n"
-                f"Description: {description}\n\n"
-                f"Return output as:\nSubject: <subject line>\nBody: <email body>"
-            )
+            prompt = f"Based on the following description, write a professional email.\n\nDescription: {description}\n\nReturn output as:\nSubject: <subject line>\nBody: <email body>"
             ai_response = generate_email_via_openrouter(prompt, st.session_state.selected_model)
-
-            # Parse AI response
             if "Subject:" in ai_response and "Body:" in ai_response:
-                subject_line = ai_response.split("Subject:")[1].split("Body:")[0].strip()
-                email_body = ai_response.split("Body:")[1].strip()
+                st.session_state.generated_subject = ai_response.split("Subject:")[1].split("Body:")[0].strip()
+                st.session_state.generated_body = ai_response.split("Body:")[1].strip()
             else:
-                subject_line = "Generated Subject"
-                email_body = ai_response
+                st.session_state.generated_subject = "Generated Subject"
+                st.session_state.generated_body = ai_response
 
-            st.session_state.generated_subject = subject_line
-            st.session_state.generated_body = email_body
-
-    # 5️⃣ Display generated subject
+    # Display subject & body
     subject = st.text_input("Subject", value=st.session_state.generated_subject)
-
-    # 6️⃣ Display generated body
     body = st.text_area("Email Body", value=st.session_state.generated_body, height=200)
 
     # ------------------------
@@ -231,7 +218,7 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
 
-    # 7️⃣ Send Emails
+    # Send Emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
