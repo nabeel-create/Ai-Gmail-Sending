@@ -154,10 +154,26 @@ def email_sender_page():
 
     st.title("📤 Send Email")
 
-    # Description input
+    # 1️⃣ Upload contacts CSV
+    contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
+    contacts = pd.read_csv(contacts_file) if contacts_file else None
+    if contacts is not None:
+        st.dataframe(contacts)
+
+    # 2️⃣ Upload attachments
+    files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
+    attachment_paths = []
+    if files:
+        for f in files:
+            with open(f.name, "wb") as out:
+                out.write(f.getbuffer())
+            attachment_paths.append(f.name)
+        st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
+
+    # 3️⃣ Description input
     description = st.text_area("📌 Enter Email Description (what the email should say)")
 
-    # Auto generate button
+    # 4️⃣ Auto generate button
     if st.button("🤖 Auto Generate Subject & Email"):
         if not description:
             st.warning("Please enter a description first!")
@@ -180,27 +196,15 @@ def email_sender_page():
             st.session_state.generated_subject = subject_line
             st.session_state.generated_body = email_body
 
-    # Display generated subject & body
+    # 5️⃣ Display generated subject
     subject = st.text_input("Subject", value=st.session_state.generated_subject)
+
+    # 6️⃣ Display generated body
     body = st.text_area("Email Body", value=st.session_state.generated_body, height=200)
 
-    # Upload contacts
-    contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
-    contacts = pd.read_csv(contacts_file) if contacts_file else None
-    if contacts is not None:
-        st.dataframe(contacts)
-
-    # Upload attachments
-    files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
-    attachment_paths = []
-    if files:
-        for f in files:
-            with open(f.name, "wb") as out:
-                out.write(f.getbuffer())
-            attachment_paths.append(f.name)
-        st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
-
-    # Create message
+    # ------------------------
+    # SEND EMAIL FUNCTIONS
+    # ------------------------
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -216,7 +220,6 @@ def email_sender_page():
             msg.attach(part)
         return msg
 
-    # Send email
     def send_email(to, msg):
         try:
             server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -228,6 +231,7 @@ def email_sender_page():
         except Exception as e:
             return f"❌ {e}"
 
+    # 7️⃣ Send Emails
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
