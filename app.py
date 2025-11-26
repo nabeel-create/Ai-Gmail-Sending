@@ -1,6 +1,6 @@
 # ================================================
-# 📧 AI Gmail Sender – Gmail Theme (Red & White)
-# Author: Nabeel
+# 📧 AI Gmail Sender – Auto Subject & Body from Description
+# Model: meta-llama/llama-3.3-70b-instruct:free
 # ================================================
 
 import streamlit as st
@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+from openai import OpenAI
 
 # ------------------------
 # PAGE CONFIG
@@ -20,7 +21,10 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 # SESSION STATE INIT
 # ------------------------
-for key in ["logged_in", "sender_email", "sender_password", "show_welcome"]:
+for key in [
+    "logged_in", "sender_email", "sender_password", "show_welcome",
+    "generated_body", "generated_subject"
+]:
     if key not in st.session_state:
         st.session_state[key] = "" if "email" in key or "password" in key else False
 
@@ -50,7 +54,7 @@ def help_menu():
         2. Sign in with your Gmail account.
         3. Select "Mail" → "Other (Custom name)" → Generate.
         4. Copy the 16-character password into this app's password field.
-        
+
         **Notes:**
         - If 2FA is enabled, App Password is required.
         - Normal Gmail password **will not work** if 2FA is enabled.
@@ -58,45 +62,57 @@ def help_menu():
         """)
 
 # ------------------------
+# OPENROUTER AI FUNCTION (LLaMA 3.3)
+# ------------------------
+def generate_email_via_openrouter(prompt):
+    try:
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=st.secrets["openrouter"]["api_key"]  # ✅ Using Streamlit secret
+        )
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-3.3-70b-instruct:free",
+            messages=[
+                {"role": "system", "content": "You are a professional email writer."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=400
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"Error generating email: {e}"
+
+# ------------------------
 # LOGIN PAGE
 # ------------------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
     st.markdown("### Sign in to continue")
 
-    email = st.text_input("Gmail Address")
-    password = st.text_input("Gmail App Password", type="password")
+    email = st.text_input("Gmail Address", value=st.session_state.sender_email)
+    password = st.text_input("Gmail App Password", type="password", value=st.session_state.sender_password)
+    st.markdown("<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>", unsafe_allow_html=True)
+    help_menu()
 
-    st.markdown(
-        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
-        unsafe_allow_html=True
-    )
-
-    help_menu()  # show three dots help
-
-    if st.button("Login", key="login_button"):
+    if st.button("Login"):
         if not email or not password:
-            st.warning("Please enter both Email and App Password")
+            st.warning("Enter Email & App Password")
         else:
             try:
                 server = smtplib.SMTP("smtp.gmail.com", 587)
                 server.starttls()
                 server.login(email, password)
                 server.quit()
-
                 # ✅ Update session state and return
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-
-                return  # Streamlit automatically reruns and shows email sender page
-
+                return  # Streamlit will rerun automatically and show the email sender page
             except Exception as e:
                 st.error(f"Login failed: {e}")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------
@@ -109,23 +125,25 @@ def email_sender_page():
 
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
-    help_menu()
 
+    # Fixed model
+    st.session_state.selected_model = "meta-llama/llama-3.3-70b-instruct:free"
+
+    # ------------------------ LOGOUT ------------------------
     if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.sender_email = ""
-        st.session_state.sender_password = ""
-        return  # ✅ Single click logout shows login page immediately
+        for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
+            st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
+        return  # ✅ Single click logout reloads the login page
 
     st.title("📤 Send Email")
 
-    # Upload contacts
+    # ------------------------ UPLOAD CONTACTS ------------------------
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
 
-    # Attachments
+    # ------------------------ UPLOAD ATTACHMENTS ------------------------
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
@@ -135,10 +153,27 @@ def email_sender_page():
             attachment_paths.append(f.name)
         st.write(f"✅ {len(attachment_paths)} attachment(s) ready")
 
-    # Compose Email
-    subject = st.text_input("Subject")
-    body = st.text_area("Body (use {{name}} for personalization)")
+    # ------------------------ EMAIL DESCRIPTION ------------------------
+    description = st.text_area("📌 Enter Email Description (what the email should say)")
 
+    if st.button("🤖 Auto Generate Subject & Email"):
+        if not description:
+            st.warning("Please enter a description first!")
+        else:
+            prompt = f"Based on the following description, write a professional email.\n\nDescription: {description}\n\nReturn output as:\nSubject: <subject line>\nBody: <email body>"
+            ai_response = generate_email_via_openrouter(prompt)
+            if "Subject:" in ai_response and "Body:" in ai_response:
+                st.session_state.generated_subject = ai_response.split("Subject:")[1].split("Body:")[0].strip()
+                st.session_state.generated_body = ai_response.split("Body:")[1].strip()
+            else:
+                st.session_state.generated_subject = "Generated Subject"
+                st.session_state.generated_body = ai_response
+
+    # ------------------------ DISPLAY SUBJECT & BODY ------------------------
+    subject = st.text_input("Subject", value=st.session_state.generated_subject)
+    body = st.text_area("Email Body", value=st.session_state.generated_body, height=200)
+
+    # ------------------------ SEND EMAIL FUNCTIONS ------------------------
     def create_message(sender, to, subject, text, attachments):
         msg = MIMEMultipart()
         msg["From"] = sender
@@ -169,12 +204,12 @@ def email_sender_page():
         if contacts is None:
             st.warning("Upload contact list first!")
         elif not subject or not body:
-            st.warning("Fill all fields!")
+            st.warning("Fill all fields or generate AI email!")
         else:
             logs = []
             for _, row in contacts.iterrows():
-                text = body.replace("{{name}}", str(row["name"]))
-                msg = create_message(st.session_state.sender_email, row["email"], subject, text, attachment_paths)
+                text_to_send = body.replace("{{name}}", str(row.get("name", "")))
+                msg = create_message(st.session_state.sender_email, row["email"], subject, text_to_send, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
             df = pd.DataFrame(logs)
@@ -184,7 +219,7 @@ def email_sender_page():
             st.info("📁 Log saved as send_log.csv")
 
 # ------------------------
-# ROUTER
+# MAIN ROUTER
 # ------------------------
 if not st.session_state.logged_in:
     login_page()
