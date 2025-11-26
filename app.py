@@ -105,12 +105,12 @@ def login_page():
                 server.starttls()
                 server.login(email, password)
                 server.quit()
+                # ✅ Update session state and return
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
-                st.success("Login successful! Reload the page to continue.")
-                return  # ✅ Let Streamlit rerun naturally
+                return  # Streamlit will rerun automatically and show the email sender page
             except Exception as e:
                 st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -133,8 +133,7 @@ def email_sender_page():
     if st.sidebar.button("Logout"):
         for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
             st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
-        st.success("Logged out! Please refresh the page.")
-        return  # ✅ Safe logout
+        return  # ✅ Single click logout reloads the login page
 
     st.title("📤 Send Email")
 
