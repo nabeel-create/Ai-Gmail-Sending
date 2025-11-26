@@ -1,5 +1,5 @@
 # ================================================
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) + OpenRouter support
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) + OpenRouter Python Client
 # Model: google/gemini-2.5-flash-lite
 # ================================================
 
@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-import openai
+from openai import OpenAI
 
 # ------------------------
 # PAGE CONFIG
@@ -108,10 +108,12 @@ def generate_email_via_openrouter(prompt, model_name):
         if not st.session_state.openrouter_key:
             return "Error: OpenRouter API key not set!"
         
-        openai.api_base = "https://openrouter.ai/api/v1"
-        openai.api_key = st.session_state.openrouter_key.strip()
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=st.session_state.openrouter_key
+        )
         
-        completion = openai.chat.completions.create(
+        completion = client.chat.completions.create(
             model=model_name,
             messages=[
                 {"role": "system", "content": "You are a professional email writer."},
@@ -186,9 +188,11 @@ def email_sender_page():
     
     if st.sidebar.button("Test OpenRouter Key & Model"):
         try:
-            openai.api_key = st.session_state.openrouter_key
-            openai.api_base = "https://openrouter.ai/api/v1"
-            resp = openai.chat.completions.create(
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=st.session_state.openrouter_key
+            )
+            resp = client.chat.completions.create(
                 model=st.session_state.selected_model,
                 messages=[{"role":"user","content":"Hello"}],
                 max_tokens=5
