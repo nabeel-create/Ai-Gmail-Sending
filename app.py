@@ -28,13 +28,10 @@ if "sender_password" not in st.session_state:
     st.session_state.sender_password = ""
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
-
-# For OpenRouter integration:
 if "openrouter_key" not in st.session_state:
     st.session_state.openrouter_key = ""
 if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "openai/gpt-3.5-turbo"
-
+    st.session_state.selected_model = "openai/gpt-oss-20b:free"
 if "generated_body" not in st.session_state:
     st.session_state.generated_body = ""
 
@@ -109,10 +106,8 @@ def generate_email_via_openrouter(prompt, model_name):
     try:
         if not st.session_state.openrouter_key:
             return "Error: OpenRouter API key not set!"
-        # Configure OpenAI client to point to OpenRouter
         openai.api_base = "https://openrouter.ai/api/v1"
         openai.api_key = st.session_state.openrouter_key.strip()
-        # Optional: headers for referencing your app (not mandatory)
         completion = openai.chat.completions.create(
             model=model_name,
             messages=[
@@ -183,15 +178,27 @@ def email_sender_page():
     key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
     st.session_state.openrouter_key = key_input.strip()
     
-    # Model selection dropdown
     model = st.sidebar.selectbox("Select model", [
-        "openai/gpt-3.5-turbo",
-        "openai/gpt-4o",
-        "anthropic/claude-3-opus",
-        "mistralai/mistral-large",
-        "meta-llama/llama-3-8b-instruct"
+        "openai/gpt-oss-20b:free",
+        "google/gemma-3n-e2b-it:free",
+        "google/gemma-3-4b-it:free",
+        "google/gemma-3-12b-it:free",
+        "tngtech/deepseek-r1t2-chimera:free"
     ], index=0)
     st.session_state.selected_model = model
+    
+    if st.sidebar.button("Test OpenRouter Key & Model"):
+        try:
+            openai.api_key = st.session_state.openrouter_key
+            openai.api_base = "https://openrouter.ai/api/v1"
+            resp = openai.chat.completions.create(
+                model=st.session_state.selected_model,
+                messages=[{"role":"user","content":"Hello"}],
+                max_tokens=5
+            )
+            st.success("✅ Key and model are valid!")
+        except Exception as e:
+            st.error(f"Key or model invalid: {e}")
     
     help_menu()
     
@@ -205,13 +212,11 @@ def email_sender_page():
     
     st.title("📤 Send Email")
     
-    # Upload contacts CSV
     contacts_file = st.file_uploader("📁 Upload Contacts CSV (name,email)", type="csv")
     contacts = pd.read_csv(contacts_file) if contacts_file else None
     if contacts is not None:
         st.dataframe(contacts)
     
-    # Upload attachments
     files = st.file_uploader("📎 Upload attachments", accept_multiple_files=True)
     attachment_paths = []
     if files:
