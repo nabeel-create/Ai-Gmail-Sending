@@ -1,6 +1,6 @@
 # ================================================ 
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) with AI Auto-Write
-# Author: Nabeel + AI Integration
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Auto-Write
+# Author: Nabeel + OpenAI Integration
 # ================================================  
 
 import streamlit as st
@@ -11,9 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
-
-# AI Imports
-from transformers import pipeline
+import openai
 
 # ------------------------
 # PAGE CONFIG
@@ -33,6 +31,8 @@ if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 if "generated_body" not in st.session_state:
     st.session_state.generated_body = ""
+if "openai_key" not in st.session_state:
+    st.session_state.openai_key = ""
 
 # ------------------------
 # CUSTOM CSS
@@ -40,7 +40,6 @@ if "generated_body" not in st.session_state:
 st.markdown("""
 <style>
 body {background-color: #f5f5f5;}
-/* LOGIN BOX */
 .login-box {
     background: white;
     width: 400px;
@@ -51,7 +50,6 @@ body {background-color: #f5f5f5;}
     box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
     border-top: 5px solid #d93025;
 }
-/* LOGIN BUTTON */
 .login-btn {
     background-color: #d93025 !important;
     color: white !important;
@@ -59,13 +57,11 @@ body {background-color: #f5f5f5;}
     border-radius: 8px !important;
     font-weight: 600 !important;
 }
-/* SIDEBAR */
 section[data-testid="stSidebar"] {
     background-color: white;
     border-right: 2px solid #e3e3e3;
 }
 .sidebar-title {font-size: 22px; font-weight: bold; color: #d93025;}
-/* CENTERED WELCOME */
 .welcome-popup {
     position: fixed;
     top: 40%;
@@ -80,13 +76,12 @@ section[data-testid="stSidebar"] {
     animation: fadeout 3s forwards;
     z-index: 9999;
 }
-/* FADEOUT ANIMATION */
 @keyframes fadeout {0% {opacity:1;} 70% {opacity:1;} 100% {opacity:0;}}
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------
-# HELP MENU BUTTON (Three dots)
+# HELP MENU BUTTON
 # ------------------------
 def help_menu():
     with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
@@ -104,18 +99,23 @@ def help_menu():
         """)
 
 # ------------------------
-# AI TEXT GENERATOR
+# OPENAI EMAIL GENERATOR
 # ------------------------
-@st.cache_resource(show_spinner=False)
-def load_ai_model():
-    generator = pipeline("text-generation", model="gpt2")
-    return generator
-
-generator = load_ai_model()
-
-def generate_email(prompt):
-    result = generator(prompt, max_length=200, num_return_sequences=1)
-    return result[0]['generated_text']
+def generate_email_openai(prompt):
+    try:
+        openai.api_key = st.session_state.openai_key
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a professional email writer."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=400
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error generating email: {e}"
 
 # ------------------------
 # LOGIN PAGE
@@ -128,17 +128,18 @@ def login_page():
     
     email = st.text_input("Gmail Address")
     password = st.text_input("Gmail App Password", type="password")
+    api_key = st.text_input("OpenAI API Key (for AI email)", type="password")
     
     st.markdown(
         "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
         unsafe_allow_html=True
     )
     
-    help_menu()  # show three dots help
+    help_menu()
     
     if st.button("Login", key="login_button"):
-        if not email or not password:
-            st.warning("Please enter both Email and App Password")
+        if not email or not password or not api_key:
+            st.warning("Enter Email, App Password & OpenAI API Key")
         else:
             try:
                 server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -150,6 +151,7 @@ def login_page():
                 st.session_state.sender_email = email
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
+                st.session_state.openai_key = api_key
                 
                 st.success("Login successful! Redirecting...")
                 st.experimental_rerun()
@@ -176,6 +178,7 @@ def email_sender_page():
         st.session_state.sender_email = ""
         st.session_state.sender_password = ""
         st.session_state.generated_body = ""
+        st.session_state.openai_key = ""
         st.experimental_rerun()
     
     st.title("📤 Send Email")
@@ -206,7 +209,7 @@ def email_sender_page():
             st.warning("Please enter a subject first!")
         else:
             prompt = f"Write a professional email with subject: '{subject}'"
-            ai_body = generate_email(prompt)
+            ai_body = generate_email_openai(prompt)
             st.session_state.generated_body = ai_body
             st.text_area("AI Generated Body", value=ai_body, height=200)
     
@@ -241,7 +244,7 @@ def email_sender_page():
     if st.button("🚀 Send Emails"):
         if contacts is None:
             st.warning("Upload contact list first!")
-        elif not subject or not body and not st.session_state.generated_body:
+        elif not subject or (not body and not st.session_state.generated_body):
             st.warning("Fill all fields or generate AI email!")
         else:
             logs = []
