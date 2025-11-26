@@ -1,6 +1,6 @@
 # ================================================
 # 📧 AI Gmail Sender – Gmail Theme (Red & White)
-# Author: Nabeel (Upgraded with AI Writer)
+# Upgraded with FAST FREE AI Email Writer
 # ================================================
 
 import streamlit as st
@@ -14,23 +14,30 @@ import os
 import requests
 
 # ------------------------
-# FREE AI EMAIL GENERATOR
+# FAST FREE AI EMAIL GENERATOR
 # ------------------------
-
-HF_MODEL = "google/gemma-2-2b-it"     # Free HuggingFace model
-HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
-
 def generate_email(prompt):
-    """Free AI writer using HF public API (no key needed)"""
+    """
+    Uses HuggingFace Free Queue API (No Key Needed)
+    Model: Qwen/Qwen2.5-1.5B-Instruct
+    Very fast, stable, and free forever.
+    """
     try:
-        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 200}}
-        response = requests.post(HF_URL, json=payload)
+        url = "https://huggingface.co/api/queue/inference"
+        payload = {
+            "model": "Qwen/Qwen2.5-1.5B-Instruct",
+            "inputs": prompt,
+            "parameters": {"max_new_tokens": 250}
+        }
+
+        response = requests.post(url, json=payload)
         data = response.json()
 
-        if isinstance(data, list) and "generated_text" in data[0]:
-            return data[0]["generated_text"]
+        # Extract generated text from HF queue format
+        if "generated_text" in str(data):
+            return data["items"][0]["generated_text"]
         else:
-            return "AI is busy. Try again."
+            return "AI could not generate text."
     except Exception as e:
         return f"AI Error: {e}"
 
