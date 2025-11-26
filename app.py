@@ -1,6 +1,7 @@
 # ================================================
 # 📧 AI Gmail Sender – Auto Subject & Body from Description
 # Model: meta-llama/llama-3.3-70b-instruct:free
+# Secrets used for API keys and Gmail credentials
 # ================================================
 
 import streamlit as st
@@ -22,11 +23,10 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # SESSION STATE INIT
 # ------------------------
 for key in [
-    "logged_in", "sender_email", "sender_password", "show_welcome", 
-    "openrouter_key", "selected_model", "generated_body", "generated_subject"
+    "logged_in", "show_welcome", "selected_model", "generated_body", "generated_subject"
 ]:
     if key not in st.session_state:
-        st.session_state[key] = "" if "key" in key or "email" in key or "password" in key else False
+        st.session_state[key] = False if key == "logged_in" or key == "show_welcome" else ""
 
 # ------------------------
 # CUSTOM CSS
@@ -53,7 +53,7 @@ def help_menu():
         1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords).
         2. Sign in with your Gmail account.
         3. Select "Mail" → "Other (Custom name)" → Generate.
-        4. Copy the 16-character password into this app's password field.
+        4. Copy the 16-character password into Streamlit secrets file.
 
         **Notes:**
         - If 2FA is enabled, App Password is required.
@@ -62,16 +62,12 @@ def help_menu():
         """)
 
 # ------------------------
-# OPENROUTER AI FUNCTION (LLaMA 3.3)
+# OPENROUTER AI FUNCTION
 # ------------------------
 def generate_email_via_openrouter(prompt, model_name):
     try:
-        if not st.session_state.openrouter_key:
-            return "Error: OpenRouter API key not set!"
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=st.session_state.openrouter_key
-        )
+        api_key = st.secrets["openrouter"]["api_key"]
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
         completion = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -91,30 +87,23 @@ def generate_email_via_openrouter(prompt, model_name):
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
-    st.markdown("### Sign in to continue")
-
-    email = st.text_input("Gmail Address", value=st.session_state.sender_email)
-    password = st.text_input("Gmail App Password", type="password", value=st.session_state.sender_password)
-    st.markdown("<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>", unsafe_allow_html=True)
+    st.markdown("### Sign in using stored Gmail credentials")
     help_menu()
 
     if st.button("Login"):
-        if not email or not password:
-            st.warning("Enter Email & App Password")
-        else:
-            try:
-                server = smtplib.SMTP("smtp.gmail.com", 587)
-                server.starttls()
-                server.login(email, password)
-                server.quit()
-                st.session_state.logged_in = True
-                st.session_state.sender_email = email
-                st.session_state.sender_password = password
-                st.session_state.show_welcome = True
-                st.success("Login successful! Redirecting...")
-                st.experimental_rerun()
-            except Exception as e:
-                st.error(f"Login failed: {e}")
+        try:
+            email = st.secrets["gmail"]["email"]
+            password = st.secrets["gmail"]["app_password"]
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(email, password)
+            server.quit()
+            st.session_state.logged_in = True
+            st.session_state.show_welcome = True
+            st.success("Login successful! Redirecting...")
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------
@@ -126,11 +115,7 @@ def email_sender_page():
         st.session_state.show_welcome = False
 
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
-    st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
-
-    # OpenRouter API key
-    key_input = st.sidebar.text_input("OpenRouter API Key", type="password", value=st.session_state.openrouter_key)
-    st.session_state.openrouter_key = key_input.strip()
+    st.sidebar.write(f"Signed in as: **{st.secrets['gmail']['email']}**")
 
     # Model selection (LLaMA 3.3)
     model = st.sidebar.selectbox("Select model", ["meta-llama/llama-3.3-70b-instruct:free"], index=0)
@@ -138,7 +123,7 @@ def email_sender_page():
 
     if st.sidebar.button("Test OpenRouter Key & Model"):
         try:
-            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.session_state.openrouter_key)
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["openrouter"]["api_key"])
             resp = client.chat.completions.create(model=model, messages=[{"role":"user","content":"Hello"}], max_tokens=5)
             st.success("✅ Key and model are valid!")
         except Exception as e:
@@ -146,8 +131,7 @@ def email_sender_page():
 
     help_menu()
     if st.sidebar.button("Logout"):
-        for key in ["logged_in", "sender_email", "sender_password", "openrouter_key", "generated_body", "generated_subject"]:
-            st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
+        st.session_state.logged_in = False
         st.experimental_rerun()
 
     st.title("📤 Send Email")
@@ -209,9 +193,11 @@ def email_sender_page():
 
     def send_email(to, msg):
         try:
+            email = st.secrets["gmail"]["email"]
+            password = st.secrets["gmail"]["app_password"]
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
-            server.login(st.session_state.sender_email, st.session_state.sender_password)
+            server.login(email, password)
             server.send_message(msg)
             server.quit()
             return "✅ Sent"
@@ -228,7 +214,7 @@ def email_sender_page():
             logs = []
             for _, row in contacts.iterrows():
                 text_to_send = body.replace("{{name}}", str(row.get("name", "")))
-                msg = create_message(st.session_state.sender_email, row["email"], subject, text_to_send, attachment_paths)
+                msg = create_message(st.secrets["gmail"]["email"], row["email"], subject, text_to_send, attachment_paths)
                 status = send_email(row["email"], msg)
                 logs.append({"email": row["email"], "status": status})
             df = pd.DataFrame(logs)
