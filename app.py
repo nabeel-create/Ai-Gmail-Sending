@@ -23,7 +23,7 @@ st.set_page_config(page_title="AI Gmail Sender", page_icon="📧", layout="wide"
 # ------------------------
 for key in [
     "logged_in", "sender_email", "sender_password", "show_welcome", 
-    "selected_model", "generated_body", "generated_subject"
+    "generated_body", "generated_subject"
 ]:
     if key not in st.session_state:
         st.session_state[key] = "" if "email" in key or "password" in key else False
@@ -64,14 +64,14 @@ def help_menu():
 # ------------------------
 # OPENROUTER AI FUNCTION (LLaMA 3.3)
 # ------------------------
-def generate_email_via_openrouter(prompt, model_name):
+def generate_email_via_openrouter(prompt):
     try:
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=st.secrets["openrouter"]["api_key"]  # ✅ Using Streamlit secret
         )
         completion = client.chat.completions.create(
-            model=model_name,
+            model="meta-llama/llama-3.3-70b-instruct:free",
             messages=[
                 {"role": "system", "content": "You are a professional email writer."},
                 {"role": "user", "content": prompt}
@@ -126,19 +126,9 @@ def email_sender_page():
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
 
-    # Model selection (LLaMA 3.3)
-    model = st.sidebar.selectbox("Select model", ["meta-llama/llama-3.3-70b-instruct:free"], index=0)
-    st.session_state.selected_model = model
+    # Fixed model (no selection)
+    st.session_state.selected_model = "meta-llama/llama-3.3-70b-instruct:free"
 
-    if st.sidebar.button("Test OpenRouter Key & Model"):
-        try:
-            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["openrouter"]["api_key"])
-            resp = client.chat.completions.create(model=model, messages=[{"role":"user","content":"Hello"}], max_tokens=5)
-            st.success("✅ Key and model are valid!")
-        except Exception as e:
-            st.error(f"Key or model invalid: {e}")
-
-    help_menu()
     if st.sidebar.button("Logout"):
         for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
             st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
@@ -171,7 +161,7 @@ def email_sender_page():
             st.warning("Please enter a description first!")
         else:
             prompt = f"Based on the following description, write a professional email.\n\nDescription: {description}\n\nReturn output as:\nSubject: <subject line>\nBody: <email body>"
-            ai_response = generate_email_via_openrouter(prompt, st.session_state.selected_model)
+            ai_response = generate_email_via_openrouter(prompt)
             if "Subject:" in ai_response and "Body:" in ai_response:
                 st.session_state.generated_subject = ai_response.split("Subject:")[1].split("Body:")[0].strip()
                 st.session_state.generated_body = ai_response.split("Body:")[1].strip()
