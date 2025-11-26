@@ -110,8 +110,7 @@ def login_page():
                 st.session_state.sender_password = password
                 st.session_state.show_welcome = True
                 st.success("Login successful! Reload the page to continue.")
-                  return  # let Streamlit rerun naturally
-
+                return  # ✅ Let Streamlit rerun naturally
             except Exception as e:
                 st.error(f"Login failed: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -127,14 +126,15 @@ def email_sender_page():
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: **{st.session_state.sender_email}**")
 
-    # Fixed model (no selection)
+    # Fixed model
     st.session_state.selected_model = "meta-llama/llama-3.3-70b-instruct:free"
 
     # ------------------------ LOGOUT ------------------------
     if st.sidebar.button("Logout"):
         for key in ["logged_in", "sender_email", "sender_password", "generated_body", "generated_subject"]:
             st.session_state[key] = "" if isinstance(st.session_state[key], str) else False
-        return  # ✅ safe logout without st.experimental_rerun() crash
+        st.success("Logged out! Please refresh the page.")
+        return  # ✅ Safe logout
 
     st.title("📤 Send Email")
 
