@@ -1,5 +1,5 @@
 # ================================================ 
-# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Auto-Write
+# 📧 AI Gmail Sender – Gmail Theme (Red & White) with OpenAI Auto-Write (1.0+)
 # Author: Nabeel + OpenAI Integration
 # ================================================  
 
@@ -99,12 +99,12 @@ def help_menu():
         """)
 
 # ------------------------
-# OPENAI EMAIL GENERATOR
+# OPENAI EMAIL GENERATOR (1.0+ compatible)
 # ------------------------
 def generate_email_openai(prompt):
     try:
         openai.api_key = st.session_state.openai_key
-        response = openai.ChatCompletion.create(
+        chat = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a professional email writer."},
@@ -113,7 +113,7 @@ def generate_email_openai(prompt):
             temperature=0.7,
             max_tokens=400
         )
-        return response.choices[0].message.content.strip()
+        return chat.choices[0].message.content
     except Exception as e:
         return f"Error generating email: {e}"
 
