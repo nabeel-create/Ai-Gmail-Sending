@@ -44,19 +44,37 @@ section[data-testid="stSidebar"] {background-color: white; border-right: 2px sol
 """, unsafe_allow_html=True)
 
 # ------------------------
-# HELP MENU
+# HELP MENU (Updated with 2FA instructions)
 # ------------------------
 def help_menu():
-    with st.expander("⋮ How to use Gmail Login (App Password / 2FA)"):
+    with st.expander("⋮ How to Enable 2FA & Create Gmail App Password"):
         st.markdown("""
-        **If 2FA is OFF → You can login with normal Gmail password.**  
-        **If 2FA is ON → You MUST use App Password.**
+### 🔐 Step 1 — Turn ON 2-Step Verification (Required)
+1. Open Google Security Settings: [Enable 2FA](https://myaccount.google.com/security)  
+2. Scroll to **"Signing in to Google"**
+3. Click **2-Step Verification**
+4. Turn it **ON**
 
-        *Steps for App Password (if needed):*
-        1. Go to Google App Passwords.
-        2. Create a Mail password.
-        3. Paste it here.
-        """)
+---
+
+### 🔑 Step 2 — Create Gmail App Password
+(Needed for login in this app — Gmail does not allow normal password)
+
+1. Go to App Passwords: [Create App Password](https://myaccount.google.com/apppasswords)  
+2. Sign in again
+3. Select **Mail**
+4. Select **Other (Custom)**
+5. Type: **AI Gmail Sender**
+6. Click **Generate**
+7. Copy the **16-digit password** and paste it here
+
+---
+
+### 📌 Important Notes
+- Normal Gmail password **will NOT work**  
+- App Password works even if less-secure apps are blocked  
+- You can delete & regenerate anytime  
+""")
 
 # ------------------------
 # OPENROUTER AI FUNCTION
@@ -81,10 +99,7 @@ def generate_email_via_openrouter(prompt):
         return f"Error generating email: {e}"
 
 # ------------------------
-# LOGIN PAGE (UPDATED)
-# ------------------------
-# ------------------------
-# LOGIN PAGE (UPDATED WITH APP PASSWORD LINK)
+# LOGIN PAGE (App Password Only)
 # ------------------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
@@ -93,37 +108,41 @@ def login_page():
 
     email = st.text_input("Gmail Address", value=st.session_state.sender_email)
 
-    password = st.text_input(
-        "Gmail Password / App Password",
+    # App Password Only
+    app_password = st.text_input(
+        "Gmail App Password (16-digit)",
         type="password",
         value=st.session_state.sender_password
     )
 
-    # 🔗 App Password Link (RESTORED)
+    # Links for 2FA & App Password
     st.markdown(
-        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
+        """
+        <a href='https://myaccount.google.com/security' target='_blank'>🔗 Enable 2-Step Verification</a><br>
+        <a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>
+        """,
         unsafe_allow_html=True
     )
 
     help_menu()
 
     if st.button("Login"):
-        if not email or not password:
-            st.warning("Enter Email & Password")
+        if not email or not app_password:
+            st.warning("Enter Email & App Password")
         else:
             try:
                 server = smtplib.SMTP("smtp.gmail.com", 587)
                 server.starttls()
-                server.login(email, password)
+                server.login(email, app_password)
                 server.quit()
 
                 # Save session
                 st.session_state.logged_in = True
                 st.session_state.sender_email = email
-                st.session_state.sender_password = password
+                st.session_state.sender_password = app_password
                 st.session_state.show_welcome = True
 
-                st.rerun()  # 🔥 instant redirect
+                st.rerun()  # instant redirect
 
             except Exception as e:
                 st.error(f"Login failed: {e}")
@@ -141,10 +160,10 @@ def email_sender_page():
     st.sidebar.markdown("<p class='sidebar-title'>📧 AI Gmail Sender</p>", unsafe_allow_html=True)
     st.sidebar.write(f"Signed in as: *{st.session_state.sender_email}*")
 
-    # ------------------------ LOGOUT (UPDATED) ------------------------
+    # ------------------------ LOGOUT ------------------------
     if st.sidebar.button("Logout"):
-        st.session_state.clear()  # 🔥 wipe all
-        st.rerun()                # 🔥 redirect
+        st.session_state.clear()  # wipe all
+        st.rerun()                # redirect
 
     st.title("📤 Send Email")
 
