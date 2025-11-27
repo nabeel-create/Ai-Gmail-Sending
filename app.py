@@ -83,13 +83,27 @@ def generate_email_via_openrouter(prompt):
 # ------------------------
 # LOGIN PAGE (UPDATED)
 # ------------------------
+# ------------------------
+# LOGIN PAGE (UPDATED WITH APP PASSWORD LINK)
+# ------------------------
 def login_page():
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png", width=80)
     st.markdown("### Sign in to continue")
 
     email = st.text_input("Gmail Address", value=st.session_state.sender_email)
-    password = st.text_input("Gmail Password / App Password", type="password", value=st.session_state.sender_password)
+
+    password = st.text_input(
+        "Gmail Password / App Password",
+        type="password",
+        value=st.session_state.sender_password
+    )
+
+    # 🔗 App Password Link (RESTORED)
+    st.markdown(
+        "<a href='https://myaccount.google.com/apppasswords' target='_blank'>🔗 Create Gmail App Password</a>",
+        unsafe_allow_html=True
+    )
 
     help_menu()
 
